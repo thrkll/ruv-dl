@@ -12,30 +12,25 @@ def main():
 
 def link():
     global ruv_link
-    ruv_link = input("""
-    Settu inn RÚV-hlekk: """)
+    ruv_link = input('\n\n    Settu inn RÚV-hlekk: ')
     if 'ruv.is/sjonvarp/spila/' in ruv_link:
         pass
     else:
         os.system(clear_terminal)
-        print("""
-    Hlekkurinn verður að vera á forminu www.ruv.is/sjonvarp/spila/...""")
+        print('\n\n    Hlekkurinn verður að vera á forminu www.ruv.is/sjonvarp/spila/...')
         link()
-    ruv_link = ruv_link.split('/')
-    ruv_link = ruv_link[-1].split('?ep=')
+    ruv_link = ruv_link.split('/')[-1].split('?ep=')
     global url
     url = 'https://api.ruv.is/api/programs/program/' + ruv_link[0] + '/' + ruv_link[1]
     try:
         _ = requests.get(url, timeout = 5)
     except requests.ConnectionError:
         os.system(clear_terminal)
-        sys.exit("""
-    Ekki tókst að tengjast RÚV.""")
+        sys.exit('\n\n    Ekki tókst að tengjast RÚV.')
+    global api
     api = requests.get(url, timeout = 5)
     api = api.json()
-    ruv_link = api['episodes'][0]
-    ruv_link = ruv_link['file']
-    ruv_link = ruv_link.split(':2400')[0]
+    ruv_link = api['episodes'][0]['file'].split(':2400')[0]
     multiple_episodes = api['multiple_episodes']
     episode_number = api['episodes'][0]['number']
     global title
@@ -44,20 +39,13 @@ def link():
          title = '%s %s' % (title, episode_number)
     else:
         pass
-    title = title + '.mp4'
+    api = api['episodes'][0]['subtitles_url']
     menu()
 
 def menu():
     os.system(clear_terminal)
     global quality
-    choice = input("""
-    1: 500kbpps
-    2: 800kbps
-    3: 1200kbps
-    4: 2400kbps (HD720)
-    5: 3600kbps (HD1080)
-
-    Veldu upplausn: """)
+    choice = input('\n\n    1:  500 kbps\n    2:  800 kbps\n    3: 1200 kbps\n    4: 2400 kbps (HD720)\n    5: 3600 kbps (HD1080)\n\n    Veldu upplausn: ')
     if choice == '1':
         quality = "500kbps"
     elif choice == '2':
@@ -75,11 +63,7 @@ def menu():
 def file():
     os.system(clear_terminal)
     if os.path.isfile(title) == True:
-        choice = input("""
-    1: Halda áfram
-    2: Hætta við
-
-    Skjalið "%s" er þegar til: """ % title)
+        choice = input('\n\n    1: Halda áfram\n    2: Hætta við\n\n    Skjalið ' + title + ' er þegar til: ')
         if choice == '1':
             pass
         elif choice =='2':
@@ -87,16 +71,34 @@ def file():
             link()
         else:
             file()
+    subtitles()
+
+def subtitles():
+    os.system(clear_terminal)
+    if api != None:
+        choice = input('\n\n    1: Já\n    2: Nei\n\n    Textaskjal er í boði fyrir þetta efni. Sækja .srt skrá?: ')
+        if choice == '1':
+            os.system(clear_terminal)
+            print("\n\n    Sæki textaskjöl...")
+            url = api
+            r = requests.get(url, allow_redirects=True)
+            open(title + '.vtt', 'wb').write(r.content)
+            ffmpeg = 'ffmpeg -y -loglevel error -i "' + title + '.vtt" "' + title + '.srt"'
+            os.system(ffmpeg)
+            os.remove(title + '.vtt')
+        elif choice == '2':
+            pass
+        else:
+            subtitles()
+    else:
+        pass
     download()
 
 def download():
     os.system(clear_terminal)
     m3u3 = ruv_link.replace('2400kbps', quality)
-    ffmpeg = 'ffmpeg -y -loglevel error -stats -i "'+m3u3+'" -c:a copy "' + title + '"'
-    print()
-    print("""
-    Sæki """ + title + """...""")
-    print()
+    ffmpeg = 'ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c:a copy "' + title + '.mp4"'
+    print('\n\n    Sæki ' + title + '...')
     os.system(ffmpeg)
 
 main()
