@@ -1,4 +1,11 @@
-# ruv-dl
+                                _ _ 
+ _ __ _   ___   __           __| | |
+| '__| | | \ \ / /  _____   / _` | |
+| |  | |_| |\ V /  |_____| | (_| | |
+|_|   \__,_| \_/            \__,_|_|
+                                    
+
+
 
 A simple python script that downloads video files from RUV.is. 
 
