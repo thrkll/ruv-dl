@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 import os
-import sys
 import requests
 
 clear_terminal = 'cls' if os.name == 'nt' else 'clear'
@@ -13,7 +12,7 @@ def main():
 def link():
     global ruv_link
     ruv_link = input('\n\n    Settu inn RÚV-hlekk: ')
-    if 'ruv.is/sjonvarp/spila/' in ruv_link:
+    if 'ruv.is/sjonvarp/spila/' or 'ruv.is/utvarp/spila/' in ruv_link:
         pass
     else:
         os.system(clear_terminal)
@@ -26,7 +25,8 @@ def link():
         _ = requests.get(url, timeout = 5)
     except requests.ConnectionError:
         os.system(clear_terminal)
-        sys.exit('\n\n    Ekki tókst að tengjast RÚV.')
+        print('\n\n    Ekki tókst að tengjast RÚV.')
+        link()
     global api
     api = requests.get(url, timeout = 5)
     api = api.json()
@@ -40,10 +40,11 @@ def link():
     else:
         pass
     api = api['episodes'][0]['subtitles_url']
-    menu()
+    resolution()
 
-def menu():
+def resolution():
     os.system(clear_terminal)
+
     global quality
     choice = input('\n\n    1:  500 kbps\n    2:  800 kbps\n    3: 1200 kbps\n    4: 2400 kbps (HD720)\n    5: 3600 kbps (HD1080)\n\n    Veldu upplausn: ')
     if choice == '1':
@@ -57,7 +58,7 @@ def menu():
     elif choice == '5':
         quality = "3600kbps"
     else:
-        menu()
+        resolution()
     file()
 
 def file():
@@ -79,9 +80,8 @@ def subtitles():
         choice = input('\n\n    1: Já\n    2: Nei\n\n    Textaskjal er í boði fyrir þetta efni. Sækja .srt skrá?: ')
         if choice == '1':
             os.system(clear_terminal)
-            print("\n\n    Sæki textaskjöl...")
-            url = api
-            r = requests.get(url, allow_redirects=True)
+            print("\n\n    Sæki textaskjöl...\n    ")
+            r = requests.get(api)
             open(title + '.vtt', 'wb').write(r.content)
             ffmpeg = 'ffmpeg -y -loglevel error -i "' + title + '.vtt" "' + title + '.srt"'
             os.system(ffmpeg)
@@ -98,7 +98,7 @@ def download():
     os.system(clear_terminal)
     m3u3 = ruv_link.replace('2400kbps', quality)
     ffmpeg = 'ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c:a copy "' + title + '.mp4"'
-    print('\n\n    Sæki ' + title + '...')
+    print('\n\n    Sæki ' + title + '...\n    ')
     os.system(ffmpeg)
 
 main()
