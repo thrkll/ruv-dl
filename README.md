@@ -1,4 +1,4 @@
-# 	ruv-dl
+# 	RUV-dl
 
 A simple python script that downloads video files from RUV.is. 
 
