@@ -24,6 +24,8 @@ A simple python script that downloads video files from RUV.is.
 
 `python ruv-dl.py`
 
-3. Enter a link to a RUV.is video / audio
+3. Enter a link to RUV.is content
 
-4. Files will download under content name as RUV defines it
+4. Select resolution and other applicable parameters
+
+5. Files will download under content name as RUV defines it
