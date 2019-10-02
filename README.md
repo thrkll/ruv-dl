@@ -1,6 +1,6 @@
 # 	RUV-dl
 
-A simple python script that downloads video files from RUV.is. 
+A simple python script that downloads media content from RUV.is. 
 
 
 ## Features 
@@ -8,24 +8,25 @@ A simple python script that downloads video files from RUV.is.
 - Download video and audio files from RUV.is from a provided URL.
 - Choose video quality.
 - Download subtitle files in .srt format.
+- Video downloads in .mp4 format, audio in .mp3 format.
 
 ## Requirements 
 
-- python3
+- Python 3
 - [ffmpeg](https://ffmpeg.org/download.html)
 
 ## Usage 
 
-1. Install ruv-dl
+1. Install RUV-dl.
 
 `git clone https://github.com/thrkll/ruv-dl.git`
 
-2. Run ruv-dl
+2. Run RUV-dl.
 
 `python ruv-dl.py`
 
-3. Enter a link to RUV.is content
+3. Enter a URL to RUV.is content.
 
-4. Select resolution and other applicable parameters
+4. Select resolution and other applicable parameters.
 
-5. Files will download under content name as RUV defines it
+5. Files will download under content name as RUV defines it.
