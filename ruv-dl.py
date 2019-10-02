@@ -1,104 +1,124 @@
 #!/usr/bin/env python
 # coding=utf-8
 import os
+import sys
 import requests
 
-clear_terminal = 'cls' if os.name == 'nt' else 'clear'
+clear = 'cls' if os.name == 'nt' else 'clear'
+os.system(clear)
 
 def main():
-    os.system(clear_terminal)
     link()
 
 def link():
-    global ruv_link
-    ruv_link = input('\n\n    Settu inn RÚV-hlekk: ')
-    if 'ruv.is/sjonvarp/spila/' or 'ruv.is/utvarp/spila/' in ruv_link:
+    link.user = input('\n\n    Settu inn RÚV-hlekk: ')
+    if 'ruv.is/utvarp/spila/' in link.user:
+        pass
+    elif 'ruv.is/sjonvarp/spila/' in link.user:
         pass
     else:
-        os.system(clear_terminal)
+        os.system(clear)
         print('\n\n    Hlekkurinn verður að vera á forminu www.ruv.is/sjonvarp/spila/...')
         link()
-    ruv_link = ruv_link.split('/')[-1].split('?ep=')
-    global url
-    url = 'https://api.ruv.is/api/programs/program/' + ruv_link[0] + '/' + ruv_link[1]
+    api()
+
+def api():
     try:
-        _ = requests.get(url, timeout = 5)
-    except requests.ConnectionError:
-        os.system(clear_terminal)
+        _ = requests.get(link.user, timeout = 5)
+    except requests.exceptions.RequestException:
+        os.system(clear)
         print('\n\n    Ekki tókst að tengjast RÚV.')
-        link()
-    global api
-    api = requests.get(url, timeout = 5)
-    api = api.json()
-    ruv_link = api['episodes'][0]['file'].split(':2400')[0]
-    multiple_episodes = api['multiple_episodes']
-    episode_number = api['episodes'][0]['number']
-    global title
-    title = api['title']
+        main()
+    episode_code = link.user.split('/')[-1].split('?ep=')
+    api.url = 'https://api.ruv.is/api/programs/program/' + episode_code[0] + '/' + episode_code[1]
+    api.data = requests.get(api.url, timeout = 5).json()
+    name()
+
+def name():
+    multiple_episodes = api.data['multiple_episodes']
+    episode_number = api.data['episodes'][0]['number']
+    name.title = api.data['title']
     if multiple_episodes == True:
-         title = '%s %s' % (title, episode_number)
+         name.title = '%s %s' % (name.title, episode_number)
     else:
         pass
-    api = api['episodes'][0]['subtitles_url']
-    resolution()
-
-def resolution():
-    os.system(clear_terminal)
-
-    global quality
-    choice = input('\n\n    1:  500 kbps\n    2:  800 kbps\n    3: 1200 kbps\n    4: 2400 kbps (HD720)\n    5: 3600 kbps (HD1080)\n\n    Veldu upplausn: ')
-    if choice == '1':
-        quality = "500kbps"
-    elif choice == '2':
-        quality = "800kbps"
-    elif choice == '3':
-        quality = "1200kbps"
-    elif choice == '4':
-        quality = "2400kbps"
-    elif choice == '5':
-        quality = "3600kbps"
+    if 'ruv.is/utvarp/spila/' in link.user:
+        name.title = name.title + '.mp3'
     else:
-        resolution()
+        name.title = name.title + '.mp4'
     file()
 
 def file():
-    os.system(clear_terminal)
-    if os.path.isfile(title) == True:
-        choice = input('\n\n    1: Halda áfram\n    2: Hætta við\n\n    Skjalið ' + title + ' er þegar til: ')
+    os.system(clear)
+    if os.path.isfile(name.title) == True:
+        choice = input('\n\n    1: Halda áfram\n    2: Hætta við\n\n    Skjalið "' + name.title + '" er þegar til: ')
         if choice == '1':
             pass
         elif choice =='2':
-            os.system(clear_terminal)
-            link()
+            os.system(clear)
+            main()
         else:
             file()
+    radio()
+
+def radio():
+    os.system(clear)
+    if 'ruv.is/utvarp/spila/' in link.user:
+        print('\n\n    Sæki "' + name.title + '"...\n    ')
+        r = requests.get(api.data['episodes'][0]['file'])
+        open(name.title + '.mp3', 'wb').write(r.content)
+        sys.exit()
+    else:
+        pass
+    resolution()
+
+def resolution():
+    os.system(clear)
+    choice = input('\n\n    1: 500 kbps\n    2: 800 kbps\n    3: 1200 kbps\n    4: 2400 kbps (HD720)\n    5: 3600 kbps (HD1080)\n\n    Veldu upplausn: ')
+    if choice == '1':
+        resolution.quality = "500kbps"
+    elif choice == '2':
+        resolution.quality = "800kbps"
+    elif choice == '3':
+        resolution.quality = "1200kbps"
+    elif choice == '4':
+        resolution.quality = "2400kbps"
+    elif choice == '5':
+        resolution.quality = "3600kbps"
+    else:
+        resolution()
     subtitles()
 
 def subtitles():
-    os.system(clear_terminal)
-    if api != None:
+    os.system(clear)
+    if api.data['episodes'][0]['subtitles_url'] != None:
         choice = input('\n\n    1: Já\n    2: Nei\n\n    Textaskjal er í boði fyrir þetta efni. Sækja .srt skrá?: ')
         if choice == '1':
-            os.system(clear_terminal)
+            os.system(clear)
             print("\n\n    Sæki textaskjöl...\n    ")
-            r = requests.get(api)
-            open(title + '.vtt', 'wb').write(r.content)
-            ffmpeg = 'ffmpeg -y -loglevel error -i "' + title + '.vtt" "' + title + '.srt"'
-            os.system(ffmpeg)
-            os.remove(title + '.vtt')
+            r = requests.get(api.data['episodes'][0]['subtitles_url'])
+            open(name.title + '.vtt', 'wb').write(r.content)
+            os.system('ffmpeg -y -loglevel error -i "' + name.title + '.vtt" "' + name.title + '.srt"')
+            os.remove(name.title + '.vtt')
         elif choice == '2':
             pass
         else:
             subtitles()
     else:
         pass
-    download()
+    video()
 
-def download():
-    os.system(clear_terminal)
-    m3u3 = ruv_link.replace('2400kbps', quality)
-    ffmpeg = 'ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c:a copy "' + title + '.mp4"'
-    print('\n\n    Sæki ' + title + '...\n    ')
-    os.system(ffmpeg)
+def video():
+    os.system(clear)
+    m3u3 = api.data['episodes'][0]['file'].split(':2400')[0].replace('2400kbps', resolution.quality)
+    print('\n\n    Sæki "' + name.title + '"...\n    ')
+    os.system('ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c:a copy "' + name.title + '"')
 
-main()
+try:
+    main()
+except KeyboardInterrupt:
+    os.system(clear)
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
