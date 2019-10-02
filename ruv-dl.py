@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-# coding=utf-8
-import os
-import sys
-import requests
+import os, sys, requests
 
 clear = 'cls' if os.name == 'nt' else 'clear'
 os.system(clear)
@@ -40,12 +37,10 @@ def name():
     name.title = api.data['title']
     if multiple_episodes == True:
          name.title = '%s %s' % (name.title, episode_number)
-    else:
-        pass
     if 'ruv.is/utvarp/spila/' in link.user:
-        name.title = name.title + '.mp3'
+        name.title += '.mp3'
     else:
-        name.title = name.title + '.mp4'
+        name.title += '.mp4'
     file()
 
 def file():
@@ -68,8 +63,6 @@ def radio():
         r = requests.get(api.data['episodes'][0]['file'])
         open(name.title + '.mp3', 'wb').write(r.content)
         sys.exit()
-    else:
-        pass
     resolution()
 
 def resolution():
@@ -104,8 +97,6 @@ def subtitles():
             pass
         else:
             subtitles()
-    else:
-        pass
     video()
 
 def video():
