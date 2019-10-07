@@ -103,7 +103,7 @@ def video():
     os.system(clear)
     m3u3 = api.data['episodes'][0]['file'].split(':2400')[0].replace('2400kbps', resolution.quality)
     print('\n\n    Sæki "' + name.title + '"...\n    ')
-    os.system('ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c:a copy "' + name.title + '"')
+    os.system('ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c copy "' + name.title + '"')
 
 try:
     main()
