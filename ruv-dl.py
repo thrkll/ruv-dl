@@ -26,8 +26,7 @@ def api():
         os.system(clear)
         print('\n\n    Ekki tókst að tengjast RÚV.')
         main()
-    episode_code = link.user.split('/')[-1].split('?ep=')
-    api.url = 'https://api.ruv.is/api/programs/program/' + episode_code[0] + '/' + episode_code[1]
+    api.url = 'https://api.ruv.is/api/programs/program/' + link.user.split('/')[-2] + '/' + link.user.split('/')[-1]
     api.data = requests.get(api.url, timeout = 5).json()
     name()
 
