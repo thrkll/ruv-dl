@@ -16,24 +16,38 @@ def link():
     else:
         os.system(clear)
         print('\n\n    Hlekkurinn verður að vera á forminu www.ruv.is/sjonvarp/spila/...')
-        link()
+        main()
     api()
 
 def api():
-    try:
-        _ = requests.get(link.user, timeout = 5)
-    except requests.exceptions.RequestException:
+    if len(link.user.split('/')) == 8:
+        content_code_1 = link.user.split('/')[-2]
+        content_code_2 = link.user.split('/')[-1]
+    elif len(link.user.split('/')) == 7:
+        try:
+            content_code_1 = link.user.split('/')[-1]
+            content_code_2 = requests.get('https://api.ruv.is/api/programs/get_ids/' + content_code_1).json()['programs'][0]['episodes'][0]['id']
+        except:
+            os.system(clear)
+            print('\n\n    Ekki tókst að tengjast RÚV...')
+            main()
+    else:
         os.system(clear)
-        print('\n\n    Ekki tókst að tengjast RÚV.')
+        print('\n\n    Hlekkurinn er ekki á réttu formi...')
         main()
-    api.url = 'https://api.ruv.is/api/programs/program/' + link.user.split('/')[-2] + '/' + link.user.split('/')[-1]
-    api.data = requests.get(api.url, timeout = 5).json()
+    try:
+        api.data = requests.get('https://api.ruv.is/api/programs/program/' + content_code_1 + '/' + content_code_2, timeout = 5).json()
+    except:
+        os.system(clear)
+        print('\n\n    Ekki tókst að tengjast RÚV...')
+        main()
     name()
 
 def name():
     multiple_episodes = api.data['multiple_episodes']
     episode_number = api.data['episodes'][0]['number']
     name.title = api.data['title']
+    print(name.title)
     if multiple_episodes == True:
          name.title = '%s %s' % (name.title, episode_number)
     if 'ruv.is/utvarp/spila/' in link.user:
@@ -90,7 +104,7 @@ def subtitles():
             print("\n\n    Sæki textaskjöl...\n    ")
             r = requests.get(api.data['episodes'][0]['subtitles_url'])
             open(name.title + '.vtt', 'wb').write(r.content)
-            os.system('ffmpeg -y -loglevel error -i "' + name.title + '.vtt" "' + name.title + '.srt"')
+            os.system('ffmpeg -y -loglevel error -i "' + name.title + '.vtt" "' + name.title[:-4] + '.srt"')
             os.remove(name.title + '.vtt')
         elif choice == '2':
             pass
@@ -103,7 +117,8 @@ def video():
     m3u3 = api.data['episodes'][0]['file'].split(':2400')[0].replace('2400kbps', resolution.quality)
     print('\n\n    Sæki "' + name.title + '"...\n    ')
     os.system('ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c copy "' + name.title + '"')
-
+    os.system(clear)
+    print('\n\n    Búið að sækja "' + name.title + '".\n    ')
 try:
     main()
 except KeyboardInterrupt:
