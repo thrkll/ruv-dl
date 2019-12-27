@@ -47,7 +47,6 @@ def name():
     multiple_episodes = api.data['multiple_episodes']
     episode_number = api.data['episodes'][0]['number']
     name.title = api.data['title']
-    print(name.title)
     if multiple_episodes == True:
          name.title = '%s %s' % (name.title, episode_number)
     if 'ruv.is/utvarp/spila/' in link.user:
