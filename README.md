@@ -5,10 +5,10 @@ A simple python script that downloads media content from RUV.is.
 
 ## Features 
 
-- Download video and audio files from RUV.is from a provided URL.
+- Download video ~~and audio files~~ from RUV.is from a provided URL. (Downloading radio content temporarily unavailable - 27.12.19)
 - Choose video quality.
 - Download subtitle files in .srt format.
-- Video downloads in .mp4 format, audio in .mp3 format.
+- Video downloads in .mp4 format, audio in .mp3 format. 
 
 ## Requirements 
 
