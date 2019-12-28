@@ -20,7 +20,14 @@ def link():
     api()
 
 def api():
-    if len(link.user.split('/')) == 8:
+    # 27.12.19  Links can have the form
+    #           .../spila/content-name/XXXXX?ep=ZZZZZZ
+    #           .../spila/content-name/XXXXX/ZZZZZZ
+    #           .../spila/content-name/XXXXX
+    if '?ep=' in link.user:
+        content_code_1 = link.user.split('/')[-1].split('?ep=')[0]
+        content_code_2 = link.user.split('/')[-1].split('?ep=')[1]
+    elif len(link.user.split('/')) == 8:
         content_code_1 = link.user.split('/')[-2]
         content_code_2 = link.user.split('/')[-1]
     elif len(link.user.split('/')) == 7:
@@ -44,11 +51,9 @@ def api():
     name()
 
 def name():
-    multiple_episodes = api.data['multiple_episodes']
-    episode_number = api.data['episodes'][0]['number']
     name.title = api.data['title']
-    if multiple_episodes == True:
-         name.title = '%s %s' % (name.title, episode_number)
+    if api.data['multiple_episodes'] == True:
+        name.title = '%s %s' % (name.title, api.data['episodes'][0]['number'])
     if 'ruv.is/utvarp/spila/' in link.user:
         name.title += '.mp3'
     else:
@@ -71,9 +76,16 @@ def file():
 def radio():
     os.system(clear)
     if 'ruv.is/utvarp/spila/' in link.user:
-        print('\n\n    Sæki "' + name.title + '"...\n    ')
-        r = requests.get(api.data['episodes'][0]['file'])
-        open(name.title + '.mp3', 'wb').write(r.content)
+        try:
+            print('\n\n    Sæki "' + name.title + '"...\n    ')
+            r = requests.get(api.data['episodes'][0]['file'])
+        except:
+            os.system(clear)
+            print('\n\n    Ekki tókst að tengjast RÚV...')
+            main()
+        open(name.title, 'wb').write(r.content)
+        os.system(clear)
+        print('\n\n    Búið að sækja "' + name.title + '".\n    ')
         sys.exit()
     resolution()
 
@@ -118,6 +130,7 @@ def video():
     os.system('ffmpeg -y -loglevel error -stats -i "' + m3u3 + '" -c copy "' + name.title + '"')
     os.system(clear)
     print('\n\n    Búið að sækja "' + name.title + '".\n    ')
+
 try:
     main()
 except KeyboardInterrupt:
