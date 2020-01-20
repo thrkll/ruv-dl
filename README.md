@@ -1,11 +1,12 @@
 # 	RUV-dl
 
-A simple python script that downloads media content from RUV.is.
+A simple python script to download media content from RUV.is.
 
 
 ## Features
 
 - Download video and audio files from RUV.is from a provided URL.
+- Download live stream.
 - Choose video quality.
 - Download subtitle files in .srt format.
 - Video downloads in .mp4 format, audio in .mp3 format.
@@ -25,8 +26,8 @@ A simple python script that downloads media content from RUV.is.
 
 `python ruv-dl.py`
 
-3. Enter a URL to RUV.is content.
+3. Enter a URL to RUV.is content or download a live stream.
 
-4. Select resolution and other applicable parameters.
+4. Select resolution and other parameters.
 
 5. Files will download under content name as RUV defines it.
