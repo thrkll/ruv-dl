@@ -156,7 +156,7 @@ def video():
     m3u3 = api.data['episodes'][0]['file'].split(':2400')[0].replace('2400kbps', resolution.link)
     print('\n\n    Sæki "{}"...\n\n    '.format(name.title))
     os.system('ffmpeg -y -loglevel error -stats -i "{}" -c copy "{}"'.format(m3u3, name.title))
-    # os.system(clear)
+    os.system(clear)
     print('\n\n    Búið að sækja "{}".'.format(name.title))
 
 
