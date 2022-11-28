@@ -9,7 +9,6 @@ A simple python script to download media content from RUV.is.
 - Download live stream.
 - Choose video quality.
 - Download subtitle files in .srt format.
-- Video downloads in .mp4 format, audio in .mp3 format.
 
 ## Requirements
 

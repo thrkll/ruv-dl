@@ -1,0 +1,4 @@
+# TODO
+# Default format eftir því hvort þetta er /sjonvarp/ eða /utvarp/
+# Skilgreina þau file formats sem skilja download aðferð
+# Gera mögulegt að downloada m3u8 sem mp3
