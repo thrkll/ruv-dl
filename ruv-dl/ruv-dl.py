@@ -98,7 +98,8 @@ def media_info(data):
         # Defines title as RUV defines it...
         title = data['title']
         if data['multiple_episodes'] == True:
-            title = '{} - {}'.format(title, data['episodes'][0]['title'])
+            secondary_title = data['episodes'][0]['title']
+            title = f'{title} - {secondary_title}'
 
         # ...unless user defined by -o flag
         if args.output:
@@ -161,7 +162,7 @@ def fancy(image_links, description, filename):
 def subtitles(subtitle_url, filepath):
     # Returns if no subtitle link available
     if subtitle_url == None:
-        print('\n No subtitles available {}:({}'.format(comfy, endc))
+        print(f'\n No subtitles available {comfy}:({endc}')
         return
 
     # Downloads subtitle file and converts .vtt file to .srt
@@ -202,7 +203,7 @@ def download(content_info, res, filepath):
     download_link = content_info[1].replace('2400kbps', res)
 
     # Finds media duration with ffprobe
-    cmd = 'ffprobe "{}"'.format(download_link)
+    cmd = f'ffprobe "{download_link}"'
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
@@ -220,7 +221,7 @@ def download(content_info, res, filepath):
         bar_len = 50
         filled_len = int(round(bar_len * count / float(total)))
         percents = round(100.0 * count / float(total), 1)
-        bar = '{}#{}'.format(grey, endc) * filled_len + '{}-{}'.format(grey, endc) * (bar_len - filled_len)
+        bar = f'{grey}#{endc}' * filled_len + f'{grey}-{endc}' * (bar_len - filled_len)
         print(' [{}] {}{} {}'.format(bar, percents, '%', '\b'*400), end='', flush=True)
 
     # Defines process

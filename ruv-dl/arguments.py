@@ -54,7 +54,7 @@ group.add_argument('-so', '--subs_only',
 group.add_argument('-t', '--format',
                     type = str,
                     metavar = '\b',
-                    help = f'\t{grey}mp4, mkv, avi, flv, mov, wmv. Default is mp4.{endc}')
+                    help = f'\t{grey}Any allowed codec by ffmpeg: mp4 (default), mkv, avi, mp3 etc.{endc}')
 
 group.add_argument('-o','--output',
                     type = str,
