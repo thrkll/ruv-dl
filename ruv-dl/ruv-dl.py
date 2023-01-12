@@ -172,7 +172,7 @@ def subtitles(subtitle_url, filepath):
 
     # Removes downloaded .vtt file
     os.remove(filepath + '.vtt')
-    print('\n Subtitles downloaded.')
+    print('\n Subtitles downloaded')
 
 def output(format):
     # Checks whether output format is supported by ffmpeg

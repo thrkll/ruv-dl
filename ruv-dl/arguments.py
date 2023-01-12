@@ -49,7 +49,7 @@ group.add_argument('-s', '--subtitles',
 
 group.add_argument('-so', '--subs_only',
                     action='store_true',
-                    help = f'{grey}Downloads only a .srt subtitle file if available.{endc}')
+                    help = f'{grey}Exclusively downloads a .srt subtitle file if available.{endc}')
 
 group.add_argument('-t', '--format',
                     type = str,
@@ -67,6 +67,6 @@ group.add_argument('-f', '--fancy',
 
 group.add_argument("-h", "--help",
                    action = "help",
-                   help = f'{grey}Show this help message and exit.{endc}')
+                   help = f'{grey}Shows this help message and exits.{endc}')
 
 args = parser.parse_args()
