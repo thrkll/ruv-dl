@@ -1,32 +1,62 @@
-# 	RUV-dl
+# 	ruv-dl 
 
-A simple python script to download media content from RUV.is.
+### Download media content from ruv.is 📺
 
+`ruv-dl` is a simple Python CLI tool to download media content from ruv.is. 
 
 ## Features
 
-- Download video and audio files from RUV.is from a provided URL.
-- Download live stream.
-- Choose video quality.
-- Download subtitle files in .srt format.
+👉 FFmpeg wrapper to download TV and radio programs from ruv.is given a provided URL
+
+👉 Optionally include metadata that is used by ruv.is, such as images, text and subtitle files 
+
+👉 Select video quality and file formats supported by FFmpeg
+
+
+## Installation 
+
+Clone the repository to install `ruv-dl`:
+
+`$ git clone https://github.com/thrkll/ruv-dl.git`
 
 ## Requirements
 
-- Python 3
-- [ffmpeg](https://ffmpeg.org/download.html)
+🐍 Python 3.6+
 
-## Usage
+💽 [FFmpeg](https://ffmpeg.org/download.html) in path
 
-1. Install RUV-dl.
 
-`git clone https://github.com/thrkll/ruv-dl.git`
 
-2. Run RUV-dl.
 
-`python ruv-dl.py`
+## Usage 
 
-3. Enter a URL to RUV.is content or download a live stream.
+#### Basic download
 
-4. Select resolution and other parameters.
+Find the link to whatever it is you want to waste your time on. Succeeding the input argument `-i` , paste in the URL. By default, the media file will download under the name RÚV defines it in best given quality. 
 
-5. Files will download under content name as RUV defines it.
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1`
+
+#### Resolution 
+By default, `ruv-dl` will download the mediafile at the highest bitrate offered by RÚV (3600kbps). To download at a worse resolution, use the `-r` argument. 5 is best - 1 is worst. 
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -r 4`
+
+#### Folder structure
+If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file together with all images and description provided by RÚV in a fancy folder. 
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f`
+
+#### Subtitles
+Most video content on ruv.is comes with Icelandic :iceland: subtitles. `ruv-dl` will attempt to download these files and convert them to .srt files. To include them in the download, use the `-s` parameter.
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f -s`
+
+#### Filetypes
+By default, video files will download as .mp4 and audio files as .mp3. But for the true snob 🧑‍🎨 `ruv-dl` will provide any file format supported by FFmpeg. Use the `-t` argument to specify the format.
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -t mkv`
+
+#### Help argument
+
+When you eventually forget everything you've read here, you can use the `--help` argument. 
+
