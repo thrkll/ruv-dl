@@ -13,6 +13,10 @@
 👉 Select video quality and file formats supported by FFmpeg
 
 
+
+![ruv-dl download](/img/download.gif)
+
+
 ## Installation 
 
 Clone the repository to install `ruv-dl`:
@@ -37,12 +41,12 @@ Find the link to whatever it is you want to waste your time on. Succeeding the i
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1`
 
 #### Resolution 
-By default, `ruv-dl` will download the mediafile at the highest bitrate offered by RÚV (3600kbps). To download at a worse resolution, use the `-r` argument. 5 is best - 1 is worst. 
+By default, `ruv-dl` will download the mediafile at the highest bitrate offered by RÚV (3600kbps). To download at a worse resolution, use the `-r` argument. 5 is best, 1 is worst. 
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -r 4`
 
 #### Folder structure
-If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file together with all images and description provided by RÚV in a fancy folder. 
+If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file  in a fancy folder together with all images and text description provided by RÚV. 
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f`
 
@@ -52,7 +56,7 @@ Most video content on ruv.is comes with Icelandic :iceland: subtitles. `ruv-dl` 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f -s`
 
 #### Filetypes
-By default, video files will download as .mp4 and audio files as .mp3. But for the true snob 🧑‍🎨 `ruv-dl` will provide any file format supported by FFmpeg. Use the `-t` argument to specify the format.
+By default, all files will download as .mp4. But for the true snob 🧑‍🎨 `ruv-dl` can use any file format supported by FFmpeg. Use the `-t` argument to specify the format.
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -t mkv`
 
@@ -60,3 +64,4 @@ By default, video files will download as .mp4 and audio files as .mp3. But for t
 
 When you eventually forget everything you've read here, you can use the `--help` argument. 
 
+![Help argument](/img/help.gif)
