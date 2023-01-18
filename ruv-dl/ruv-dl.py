@@ -10,28 +10,42 @@ import time
 
 os.system('color')
 
+if os.name == 'nt':
+    import msvcrt
+    import ctypes
+
+    class _CursorInfo(ctypes.Structure):
+        _fields_ = [("size", ctypes.c_int),
+                    ("visible", ctypes.c_byte)]
+
+def hide_cursor():
+    if os.name == 'nt':
+        ci = _CursorInfo()
+        handle = ctypes.windll.kernel32.GetStdHandle(-11)
+        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
+        ci.visible = False
+        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
+    elif os.name == 'posix':
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
+
+hide_cursor()
+
 def main():
     ffmpeg_check()
-
     res = resolution(args.resolution) if args.resolution else '3600kbps'
     content_ids = url_data(args.input)
     json_data = api_getter(content_ids)
     content_info = media_info(json_data)
-
-    title = content_info[0]
-    title = re.sub('[^\w_.)( -]', '', title)
-
+    title = re.sub('[^\w_.)( -]', '', content_info[0])
     filepath = fancy(content_info[2], content_info[3], title)
     if args.subs_only:
         subtitles(content_info[4], filepath)
         sys.exit()
     elif args.subtitles:
         subtitles(content_info[4], filepath)
-
     filepath += output(args.format) if args.format else '.mp4'
-
-    filechecker(filepath)
-
+    checker(filepath)
     download(content_info, res, filepath)
 
 def filechecker(filepath):
@@ -126,7 +140,7 @@ def fancy(image_links, description, filename):
 
         # Checks whether folder already exists
         if os.path.exists(new_folder):
-            answer = input(f'\n Fancy folder already exists. \n Do you want to overwrite? [{comfy}y/n{endc}]: ')
+            answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
             if answer.lower() != 'y':
                 sys.exit()
             try:
