@@ -1,5 +1,9 @@
 # 	ruv-dl 
 
+[![Python](https://img.shields.io/badge/Python_3-3776AB?logo=python&logoColor=white)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/thrkll/ruv-dl)]()
+
 ### Download media content from ruv.is 📺
 
 `ruv-dl` is a simple Python CLI tool to download media content from ruv.is. 
@@ -12,14 +16,11 @@
 
 👉 Select video quality and file formats supported by FFmpeg
 
-
-
 ![ruv-dl download](/img/download.gif)
-
 
 ## Installation 
 
-Clone the repository to install `ruv-dl`:
+Clone the repository to install `ruv-dl`
 
 `$ git clone https://github.com/thrkll/ruv-dl.git`
 
@@ -65,3 +66,33 @@ By default, all files will download as .mp4. But for the true snob 🧑‍🎨 `
 When you eventually forget everything you've read here, you can use the `--help` argument. 
 
 ![Help argument](/img/help.gif)
+
+## Versions
+
+📦 2.0.0 - 01 2023 - CLI version of ruv-dl with arguments
+
+📦 1.0.0 - 09 2019 - Initial release
+
+## Licence
+
+MIT License
+
+Copyright (c) 2023 Þorkell Einarsson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
