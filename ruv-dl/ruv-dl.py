@@ -18,20 +18,8 @@ if os.name == 'nt':
         _fields_ = [("size", ctypes.c_int),
                     ("visible", ctypes.c_byte)]
 
-def hide_cursor():
-    if os.name == 'nt':
-        ci = _CursorInfo()
-        handle = ctypes.windll.kernel32.GetStdHandle(-11)
-        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
-        ci.visible = False
-        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
-    elif os.name == 'posix':
-        sys.stdout.write("\033[?25l")
-        sys.stdout.flush()
-
-hide_cursor()
-
 def main():
+    hide_cursor()
     ffmpeg_check()
     res = resolution(args.resolution) if args.resolution else '3600kbps'
     content_ids = url_data(args.input)
@@ -47,6 +35,17 @@ def main():
     filepath += output(args.format) if args.format else '.mp4'
     exists_checker(filepath)
     download(content_info, res, filepath)
+
+def hide_cursor():
+    if os.name == 'nt':
+        ci = _CursorInfo()
+        handle = ctypes.windll.kernel32.GetStdHandle(-11)
+        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
+        ci.visible = False
+        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
+    elif os.name == 'posix':
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
 
 def exists_checker(filepath):
     # Checks whether file already exists
