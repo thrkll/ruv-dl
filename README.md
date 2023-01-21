@@ -1,39 +1,41 @@
-# 	ruv-dl 
+# 	📺 ruv-dl 
 
 [![Python](https://img.shields.io/badge/Python_3-3776AB?logo=python&logoColor=white)](https://opensource.org/licenses/MIT)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/thrkll/ruv-dl)]()
 
-### Download media content from ruv.is 📺
+### Download media content from ruv.is 
 
 `ruv-dl` is a simple Python CLI tool to download media content from ruv.is. 
 
-## Features
+## ✨ Features
 
-👉 FFmpeg wrapper to download TV and radio programs from ruv.is given a provided URL
+🔹 FFmpeg wrapper to download TV and radio programs from ruv.is given a provided URL
 
-👉 Optionally include metadata that is used by ruv.is, such as images, text and subtitle files 
+🔹 Optionally include metadata that is used by ruv.is, such as images, text and subtitle files 
 
-👉 Select video quality and file formats supported by FFmpeg
+🔹 Select video quality and file formats supported by FFmpeg
 
 ![ruv-dl download](/img/download.gif)
 
-## Installation 
+## ⚡️ Installation 
 
-Clone the repository to install `ruv-dl`
+1. Clone the repository to install `ruv-dl`.
 
 `$ git clone https://github.com/thrkll/ruv-dl.git`
 
-## Requirements
+2. Install dependencies.
 
-🐍 Python 3.6+
+`$  pip install -r requirements.txt`
 
-💽 [FFmpeg](https://ffmpeg.org/download.html) in path
+## ⚙️ Requirements
+
+🔹Python 3.6+
+
+🔹[FFmpeg](https://ffmpeg.org/download.html) in path
 
 
-
-
-## Usage 
+## 📖 Usage 
 
 #### Basic download
 
@@ -67,13 +69,18 @@ When you eventually forget everything you've read here, you can use the `--help`
 
 ![Help argument](/img/help.gif)
 
-## Versions
+ 
+## ⚒️ Project assistance
 
-📦 2.0.0 - 01 2023 - CLI version of ruv-dl with arguments
+Please raise an issue if you run into any trouble or have a feature request. Feel free to contribute and make pull requests. Mark this project with a star ⭐ if you like it and let your friends hear about it. 
+
+## 🚚 Versions
+
+📦 2.0.0 - 01 2023 - CLI version of ruv-dl with argparse
 
 📦 1.0.0 - 09 2019 - Initial release
 
-## Licence
+## ⚠️ Licence
 
 MIT License
 

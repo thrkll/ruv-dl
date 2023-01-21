@@ -45,10 +45,10 @@ def main():
     elif args.subtitles:
         subtitles(content_info[4], filepath)
     filepath += output(args.format) if args.format else '.mp4'
-    checker(filepath)
+    exists_checker(filepath)
     download(content_info, res, filepath)
 
-def filechecker(filepath):
+def exists_checker(filepath):
     # Checks whether file already exists
     if os.path.isfile(filepath) == True:
         print('\n File already exists.')
