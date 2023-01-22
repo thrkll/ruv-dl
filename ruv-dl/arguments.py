@@ -1,7 +1,6 @@
 import argparse
 from argparse import RawTextHelpFormatter
 import os
-os.system('color')
 
 # Color config
 grey = '\033[90m'
