@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="terminal" baseProfile="full" viewBox="0 0 1087 523" width="1087" version="1.1">
+    <defs>
+        <termtosvg:template_settings xmlns:termtosvg="https://github.com/nbedos/termtosvg">
+            <termtosvg:screen_geometry columns="130" rows="26"/>
+            <termtosvg:animation type="css"/>
+        </termtosvg:template_settings>
+        <style type="text/css" id="generated-style"><![CDATA[#screen {
+                font-family: 'DejaVu Sans Mono', monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
+
+        text {
+            dominant-baseline: text-before-edge;
+            white-space: pre;
+        }
+    
+            :root {
+                --animation-duration: 17051ms;
+            }
+
+            @keyframes roll {
+                0.000%{transform:translateY(0px)}
+2.639%{transform:translateY(-476px)}
+3.777%{transform:translateY(-952px)}
+4.340%{transform:translateY(-1428px)}
+4.838%{transform:translateY(-1904px)}
+5.765%{transform:translateY(-2380px)}
+9.384%{transform:translateY(-2856px)}
+12.639%{transform:translateY(-3332px)}
+13.178%{transform:translateY(-3808px)}
+13.636%{transform:translateY(-4284px)}
+17.418%{transform:translateY(-4760px)}
+17.758%{transform:translateY(-5236px)}
+18.404%{transform:translateY(-5712px)}
+21.025%{transform:translateY(-6188px)}
+22.315%{transform:translateY(-6664px)}
+22.714%{transform:translateY(-7140px)}
+27.934%{transform:translateY(-7616px)}
+32.098%{transform:translateY(-8092px)}
+33.634%{transform:translateY(-8568px)}
+34.907%{transform:translateY(-9044px)}
+35.881%{transform:translateY(-9520px)}
+38.596%{transform:translateY(-9996px)}
+39.382%{transform:translateY(-10472px)}
+48.701%{transform:translateY(-10948px)}
+56.571%{transform:translateY(-11424px)}
+60.436%{transform:translateY(-11900px)}
+63.369%{transform:translateY(-12376px)}
+66.688%{transform:translateY(-12852px)}
+69.621%{transform:translateY(-13328px)}
+72.928%{transform:translateY(-13804px)}
+76.506%{transform:translateY(-14280px)}
+80.588%{transform:translateY(-14756px)}
+83.520%{transform:translateY(-15232px)}
+86.974%{transform:translateY(-15708px)}
+92.118%{transform:translateY(-16184px)}
+93.039%{transform:translateY(-16660px)}
+93.965%{transform:translateY(-17136px)}
+94.135%{transform:translateY(-17612px)}
+100.000%{transform:translateY(-17612px)}
+            }
+
+            #screen_view {
+                animation-duration: 17051ms;
+                animation-iteration-count:infinite;
+                animation-name:roll;
+                animation-timing-function: steps(1,end);
+                animation-fill-mode: forwards;
+            }
+        ]]></style>
+        <style type="text/css" id="user-style">
+            /* The colors defined below are the default 16 colors used for rendering text of the terminal. Adjust
+               them as needed.
+               PowerShell colors based on https://en.wikipedia.org/wiki/ANSI_escape_code#Colors */
+            .foreground {fill: #cccccc;}
+            .background {fill: #0c0c0c;}
+            .color0 {fill: #0c0c0c;}
+            .color1 {fill: #c50f1f;}
+            .color2 {fill: #13a10e;}
+            .color3 {fill: #c19c00;}
+            .color4 {fill: #0037da;}
+            .color5 {fill: #881798;}
+            .color6 {fill: #3a96dd;}
+            .color7 {fill: #cccccc;}
+            .color8 {fill: #767676;}
+            .color9 {fill: #e74856;}
+            .color10 {fill: #16c60c;}
+            .color11 {fill: #f9f1a5;}
+            .color12 {fill: #3b78ff;}
+            .color13 {fill: #b4009e;}
+            .color14 {fill: #61d6d6;}
+            .color15 {fill: #f2f2f2;}
+        </style>
+    </defs>
+    <rect id="terminalui" class="background" width="100%" height="100%" ry="4.5826941"/>
+    <circle cx="24" cy="23" r="7" class="color1"/>
+    <circle cx="44" cy="23" r="7" class="color3"/>
+    <circle cx="64" cy="23" r="7" class="color2"/>
+    <svg id="screen" width="1040" height="442" x="23" y="50" viewBox="0 0 1040 442" preserveAspectRatio="xMidYMin slice"><rect class="background" height="100%" width="100%" x="0" y="0"/><defs><g id="g1"><text x="0" textLength="176" class="foreground">root@ruv-dl:~/ruv-dl# </text><text x="176" textLength="8" class="background"> </text></g><g id="g2"><text x="0" textLength="184" class="foreground">root@ruv-dl:~/ruv-dl# p</text><text x="184" textLength="8" class="background"> </text></g><g id="g3"><text x="0" textLength="192" class="foreground">root@ruv-dl:~/ruv-dl# py</text><text x="192" textLength="8" class="background"> </text></g><g id="g4"><text x="0" textLength="200" class="foreground">root@ruv-dl:~/ruv-dl# pyt</text><text x="200" textLength="8" class="background"> </text></g><g id="g5"><text x="0" textLength="208" class="foreground">root@ruv-dl:~/ruv-dl# pyth</text><text x="208" textLength="8" class="background"> </text></g><g id="g6"><text x="0" textLength="232" class="foreground">root@ruv-dl:~/ruv-dl# python3</text><text x="232" textLength="8" class="background"> </text></g><g id="g7"><text x="0" textLength="240" class="foreground">root@ruv-dl:~/ruv-dl# python3 </text><text x="240" textLength="8" class="background"> </text></g><g id="g8"><text x="0" textLength="248" class="foreground">root@ruv-dl:~/ruv-dl# python3 r</text><text x="248" textLength="8" class="background"> </text></g><g id="g9"><text x="0" textLength="256" class="foreground">root@ruv-dl:~/ruv-dl# python3 ru</text><text x="256" textLength="8" class="background"> </text></g><g id="g10"><text x="0" textLength="296" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/</text><text x="296" textLength="8" class="background"> </text></g><g id="g11"><text x="0" textLength="304" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/r</text><text x="304" textLength="8" class="background"> </text></g><g id="g12"><text x="0" textLength="312" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ru</text><text x="312" textLength="8" class="background"> </text></g><g id="g13"><text x="0" textLength="376" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py </text><text x="376" textLength="8" class="background"> </text></g><g id="g14"><text x="0" textLength="384" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -</text><text x="384" textLength="8" class="background"> </text></g><g id="g15"><text x="0" textLength="392" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -i</text><text x="392" textLength="8" class="background"> </text></g><g id="g16"><text x="0" textLength="400" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -i </text><text x="400" textLength="8" class="background"> </text></g><g id="g17"><text x="0" textLength="888" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -i https://www.ruv.is/sjonvarp/spila/vedur-kl-22-15/30764/a0kjrb</text><text x="888" textLength="8" class="background"> </text></g><g id="g18"><text x="0" textLength="888" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -i https://www.ruv.is/sjonvarp/spila/vedur-kl-22-15/30764/a0kjrb</text></g><g id="g19"><text x="0" textLength="8" class="background"> </text></g><g id="g20"><text x="0" textLength="392" class="foreground"> File already exists. Do you want to overwrite? [</text><text x="392" textLength="24" font-weight="bold" class="color11">y/n</text><text x="416" textLength="24" class="foreground">]: </text></g><g id="g21"><text x="0" textLength="392" class="foreground"> File already exists. Do you want to overwrite? [</text><text x="392" textLength="24" font-weight="bold" class="color11">y/n</text><text x="416" textLength="32" class="foreground">]: y</text></g><g id="g22"><text x="0" textLength="104" class="foreground"> Downloading </text><text x="104" textLength="248" font-weight="bold" class="color11">Ve&#240;ur kl. 2215 - 19.01.2023.mp4</text><text x="352" textLength="24" class="foreground">...</text></g><g id="g23"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">--------------------------------------------------</text><text x="416" textLength="48" class="foreground">] 0.0%</text></g><g id="g24"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">###-----------------------------------------------</text><text x="416" textLength="48" class="foreground">] 5.9%</text></g><g id="g25"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">######--------------------------------------------</text><text x="416" textLength="56" class="foreground">] 12.5%</text></g><g id="g26"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">############--------------------------------------</text><text x="416" textLength="56" class="foreground">] 23.4%</text></g><g id="g27"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">################----------------------------------</text><text x="416" textLength="56" class="foreground">] 31.6%</text></g><g id="g28"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">#####################-----------------------------</text><text x="416" textLength="56" class="foreground">] 42.1%</text></g><g id="g29"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">############################----------------------</text><text x="416" textLength="56" class="foreground">] 55.6%</text></g><g id="g30"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">#################################-----------------</text><text x="416" textLength="56" class="foreground">] 65.1%</text></g><g id="g31"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">#####################################-------------</text><text x="416" textLength="56" class="foreground">] 73.0%</text></g><g id="g32"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">########################################----------</text><text x="416" textLength="56" class="foreground">] 80.9%</text></g><g id="g33"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">#############################################-----</text><text x="416" textLength="56" class="foreground">] 89.5%</text></g><g id="g34"><text x="0" textLength="16" class="foreground"> [</text><text x="16" textLength="400" class="color8">##################################################</text><text x="416" textLength="64" class="foreground">] 100.0%</text></g><g id="g35"><text x="0" textLength="1040" class="foreground">                                                                                                                                  </text></g><g id="g36"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="224" text-decoration="underline" class="color8">Download completed in 8 sec.</text></g><g id="g37"><text x="0" textLength="176" class="foreground">root@ruv-dl:~/ruv-dl# </text></g></defs><g id="screen_view"><g><rect x="176" y="0" width="8" height="17" class="foreground"/><use xlink:href="#g1" y="0"/></g><g><rect x="184" y="476" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="476"/></g><g><rect x="192" y="952" width="8" height="17" class="foreground"/><use xlink:href="#g3" y="952"/></g><g><rect x="200" y="1428" width="8" height="17" class="foreground"/><use xlink:href="#g4" y="1428"/></g><g><rect x="208" y="1904" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="1904"/></g><g><rect x="232" y="2380" width="8" height="17" class="foreground"/><use xlink:href="#g6" y="2380"/></g><g><rect x="240" y="2856" width="8" height="17" class="foreground"/><use xlink:href="#g7" y="2856"/></g><g><rect x="248" y="3332" width="8" height="17" class="foreground"/><use xlink:href="#g8" y="3332"/></g><g><rect x="256" y="3808" width="8" height="17" class="foreground"/><use xlink:href="#g9" y="3808"/></g><g><rect x="296" y="4284" width="8" height="17" class="foreground"/><use xlink:href="#g10" y="4284"/></g><g><rect x="304" y="4760" width="8" height="17" class="foreground"/><use xlink:href="#g11" y="4760"/></g><g><rect x="312" y="5236" width="8" height="17" class="foreground"/><use xlink:href="#g12" y="5236"/></g><g><rect x="376" y="5712" width="8" height="17" class="foreground"/><use xlink:href="#g13" y="5712"/></g><g><rect x="384" y="6188" width="8" height="17" class="foreground"/><use xlink:href="#g14" y="6188"/></g><g><rect x="392" y="6664" width="8" height="17" class="foreground"/><use xlink:href="#g15" y="6664"/></g><g><rect x="400" y="7140" width="8" height="17" class="foreground"/><use xlink:href="#g16" y="7140"/></g><g><rect x="888" y="7616" width="8" height="17" class="foreground"/><use xlink:href="#g17" y="7616"/></g><g><rect x="888" y="8092" width="8" height="17" class="foreground"/><use xlink:href="#g17" y="8092"/></g><g><use xlink:href="#g18" y="8568"/><rect x="0" y="8585" width="8" height="17" class="foreground"/><use xlink:href="#g19" y="8585"/></g><g><use xlink:href="#g18" y="9044"/></g><g><use xlink:href="#g18" y="9520"/><rect x="392" y="9554" width="24" height="17" class="color0"/><use xlink:href="#g20" y="9554"/></g><g><use xlink:href="#g18" y="9996"/><rect x="392" y="10030" width="24" height="17" class="color0"/><use xlink:href="#g21" y="10030"/></g><g><use xlink:href="#g18" y="10472"/><rect x="392" y="10506" width="24" height="17" class="color0"/><use xlink:href="#g21" y="10506"/></g><g><use xlink:href="#g18" y="10948"/><rect x="392" y="10982" width="24" height="17" class="color0"/><use xlink:href="#g21" y="10982"/><rect x="104" y="11016" width="248" height="17" class="color0"/><use xlink:href="#g22" y="11016"/></g><g><use xlink:href="#g18" y="11424"/><rect x="392" y="11458" width="24" height="17" class="color0"/><use xlink:href="#g21" y="11458"/><rect x="104" y="11492" width="248" height="17" class="color0"/><use xlink:href="#g22" y="11492"/><use xlink:href="#g23" y="11509"/></g><g><use xlink:href="#g18" y="11900"/><rect x="392" y="11934" width="24" height="17" class="color0"/><use xlink:href="#g21" y="11934"/><rect x="104" y="11968" width="248" height="17" class="color0"/><use xlink:href="#g22" y="11968"/><use xlink:href="#g24" y="11985"/></g><g><use xlink:href="#g18" y="12376"/><rect x="392" y="12410" width="24" height="17" class="color0"/><use xlink:href="#g21" y="12410"/><rect x="104" y="12444" width="248" height="17" class="color0"/><use xlink:href="#g22" y="12444"/><use xlink:href="#g25" y="12461"/></g><g><use xlink:href="#g18" y="12852"/><rect x="392" y="12886" width="24" height="17" class="color0"/><use xlink:href="#g21" y="12886"/><rect x="104" y="12920" width="248" height="17" class="color0"/><use xlink:href="#g22" y="12920"/><use xlink:href="#g26" y="12937"/></g><g><use xlink:href="#g18" y="13328"/><rect x="392" y="13362" width="24" height="17" class="color0"/><use xlink:href="#g21" y="13362"/><rect x="104" y="13396" width="248" height="17" class="color0"/><use xlink:href="#g22" y="13396"/><use xlink:href="#g27" y="13413"/></g><g><use xlink:href="#g18" y="13804"/><rect x="392" y="13838" width="24" height="17" class="color0"/><use xlink:href="#g21" y="13838"/><rect x="104" y="13872" width="248" height="17" class="color0"/><use xlink:href="#g22" y="13872"/><use xlink:href="#g28" y="13889"/></g><g><use xlink:href="#g18" y="14280"/><rect x="392" y="14314" width="24" height="17" class="color0"/><use xlink:href="#g21" y="14314"/><rect x="104" y="14348" width="248" height="17" class="color0"/><use xlink:href="#g22" y="14348"/><use xlink:href="#g29" y="14365"/></g><g><use xlink:href="#g18" y="14756"/><rect x="392" y="14790" width="24" height="17" class="color0"/><use xlink:href="#g21" y="14790"/><rect x="104" y="14824" width="248" height="17" class="color0"/><use xlink:href="#g22" y="14824"/><use xlink:href="#g30" y="14841"/></g><g><use xlink:href="#g18" y="15232"/><rect x="392" y="15266" width="24" height="17" class="color0"/><use xlink:href="#g21" y="15266"/><rect x="104" y="15300" width="248" height="17" class="color0"/><use xlink:href="#g22" y="15300"/><use xlink:href="#g31" y="15317"/></g><g><use xlink:href="#g18" y="15708"/><rect x="392" y="15742" width="24" height="17" class="color0"/><use xlink:href="#g21" y="15742"/><rect x="104" y="15776" width="248" height="17" class="color0"/><use xlink:href="#g22" y="15776"/><use xlink:href="#g32" y="15793"/></g><g><use xlink:href="#g18" y="16184"/><rect x="392" y="16218" width="24" height="17" class="color0"/><use xlink:href="#g21" y="16218"/><rect x="104" y="16252" width="248" height="17" class="color0"/><use xlink:href="#g22" y="16252"/><use xlink:href="#g33" y="16269"/></g><g><use xlink:href="#g18" y="16660"/><rect x="392" y="16694" width="24" height="17" class="color0"/><use xlink:href="#g21" y="16694"/><rect x="104" y="16728" width="248" height="17" class="color0"/><use xlink:href="#g22" y="16728"/><use xlink:href="#g34" y="16745"/></g><g><use xlink:href="#g18" y="17136"/><rect x="392" y="17170" width="24" height="17" class="color0"/><use xlink:href="#g21" y="17170"/><rect x="104" y="17204" width="248" height="17" class="color0"/><use xlink:href="#g22" y="17204"/><use xlink:href="#g35" y="17221"/><use xlink:href="#g36" y="17238"/></g><g><use xlink:href="#g18" y="17612"/><rect x="392" y="17646" width="24" height="17" class="color0"/><use xlink:href="#g21" y="17646"/><rect x="104" y="17680" width="248" height="17" class="color0"/><use xlink:href="#g22" y="17680"/><use xlink:href="#g35" y="17697"/><use xlink:href="#g36" y="17714"/><use xlink:href="#g37" y="17765"/></g></g></svg>
+</svg>
