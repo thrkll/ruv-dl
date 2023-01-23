@@ -16,7 +16,7 @@
 
 🔹 Select video quality and file formats supported by FFmpeg
 
-![ruv-dl download](/img/download.gif)
+![ruv-dl download](/img/download.svg)
 
 ## ⚡️ Installation 
 
@@ -54,7 +54,7 @@ If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f`
 
 #### Subtitles
-Most video content on ruv.is comes with Icelandic :iceland: subtitles. `ruv-dl` will attempt to download these files and convert them to .srt files. To include them in the download, use the `-s` parameter.
+Most video content on ruv.is comes with Icelandic :iceland: subtitles. `ruv-dl` will attempt to download these files and convert them to .srt files. To include them in the download, use the `-s` argument.
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f -s`
 
@@ -67,7 +67,7 @@ By default, all files will download as .mp4. But for the true snob 🧑‍🎨 `
 
 When you eventually forget everything you've read here, you can use the `--help` argument. 
 
-![Help argument](/img/help.gif)
+![Help argument](/img/help.svg)
 
  
 ## ⚒️ Project assistance

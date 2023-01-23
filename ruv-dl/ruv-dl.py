@@ -8,12 +8,11 @@ import datetime
 import re
 import time
 
-os.system('color')
-
 if os.name == 'nt':
     import msvcrt
     import ctypes
 
+    os.system('color')
     class _CursorInfo(ctypes.Structure):
         _fields_ = [("size", ctypes.c_int),
                     ("visible", ctypes.c_byte)]
@@ -50,8 +49,7 @@ def hide_cursor():
 def exists_checker(filepath):
     # Checks whether file already exists
     if os.path.isfile(filepath) == True:
-        print('\n File already exists.')
-        answer = input(f' Do you want to overwrite? [{comfy}y/n{endc}]: ')
+        answer = input(f'\n File already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
         if answer.lower() != 'y':
             sys.exit()
 
@@ -194,7 +192,8 @@ def output(format):
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True)
+                               universal_newlines=True,
+                               shell=True)
     ffmpeg_formats = []
     for line in process.stdout:
         a = line.split()
@@ -220,7 +219,8 @@ def download(content_info, res, filepath):
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True)
+                               universal_newlines=True,
+                               shell=True)
     for line in process.stdout:
         if 'Duration:' in line:
             h,m,s = line.split('Duration: ')[1][:8].split(':')
@@ -235,14 +235,19 @@ def download(content_info, res, filepath):
         filled_len = int(round(bar_len * count / float(total)))
         percents = round(100.0 * count / float(total), 1)
         bar = f'{grey}#{endc}' * filled_len + f'{grey}-{endc}' * (bar_len - filled_len)
-        print(' [{}] {}{} {}'.format(bar, percents, '%', '\b'*400), end='', flush=True)
+        print("\r", end="")
+        print(' [{}] {}{}'.format(bar, percents, '%'), end='', flush=True)
+        
+        if percents == 100:
+            print("\r", end="")
 
     # Defines process
     cmd = f'ffmpeg -y -loglevel error -stats -i "{download_link}" -c copy "{filepath}"'
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True)
+                               universal_newlines=True,
+                               shell=True)
     filepath = filepath.split('/')[-1]
     print(f'\n Downloading {comfy}{filepath}{endc}...')
 
@@ -259,8 +264,6 @@ def download(content_info, res, filepath):
                                             minutes=int(m),
                                             seconds=int(s)).total_seconds())
         progress(media_done, media_duration)
-
-    sys.stdout.write("\033[K")
 
     # Rounds up time
     final_time = time.time() - start_time
@@ -281,7 +284,7 @@ def download(content_info, res, filepath):
     duration = round_time(final_time)
 
     sys.stdout.write("\033[K")
-    print(f'\n {grey_underl}Download completed in {duration}{endc}\n', end='\r', flush=True)
+    print(f'\n {grey_underl}Download completed in {duration}{endc}\n\n')
 
     sys.exit()  
 

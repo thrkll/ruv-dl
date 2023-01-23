@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="terminal" baseProfile="full" viewBox="0 0 1087 574" width="1087" version="1.1">
+    <defs>
+        <termtosvg:template_settings xmlns:termtosvg="https://github.com/nbedos/termtosvg">
+            <termtosvg:screen_geometry columns="130" rows="29"/>
+            <termtosvg:animation type="css"/>
+        </termtosvg:template_settings>
+        <style type="text/css" id="generated-style"><![CDATA[#screen {
+                font-family: 'DejaVu Sans Mono', monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
+
+        text {
+            dominant-baseline: text-before-edge;
+            white-space: pre;
+        }
+    
+            :root {
+                --animation-duration: 6582ms;
+            }
+
+            @keyframes roll {
+                0.000%{transform:translateY(0px)}
+3.069%{transform:translateY(-510px)}
+8.083%{transform:translateY(-1020px)}
+9.465%{transform:translateY(-1530px)}
+11.243%{transform:translateY(-2040px)}
+13.780%{transform:translateY(-2550px)}
+14.874%{transform:translateY(-3060px)}
+21.301%{transform:translateY(-3570px)}
+23.048%{transform:translateY(-4080px)}
+24.461%{transform:translateY(-4590px)}
+25.631%{transform:translateY(-5100px)}
+31.328%{transform:translateY(-5610px)}
+32.847%{transform:translateY(-6120px)}
+34.260%{transform:translateY(-6630px)}
+39.456%{transform:translateY(-7140px)}
+41.811%{transform:translateY(-7650px)}
+44.926%{transform:translateY(-8160px)}
+47.144%{transform:translateY(-8670px)}
+48.648%{transform:translateY(-9180px)}
+49.757%{transform:translateY(-9690px)}
+52.871%{transform:translateY(-10200px)}
+53.737%{transform:translateY(-10710px)}
+53.783%{transform:translateY(-11220px)}
+53.889%{transform:translateY(-11730px)}
+84.807%{transform:translateY(-12240px)}
+100.000%{transform:translateY(-12240px)}
+            }
+
+            #screen_view {
+                animation-duration: 6582ms;
+                animation-iteration-count:infinite;
+                animation-name:roll;
+                animation-timing-function: steps(1,end);
+                animation-fill-mode: forwards;
+            }
+        ]]></style>
+        <style type="text/css" id="user-style">
+            /* The colors defined below are the default 16 colors used for rendering text of the terminal. Adjust
+               them as needed.
+               PowerShell colors based on https://en.wikipedia.org/wiki/ANSI_escape_code#Colors */
+            .foreground {fill: #cccccc;}
+            .background {fill: #0c0c0c;}
+            .color0 {fill: #0c0c0c;}
+            .color1 {fill: #c50f1f;}
+            .color2 {fill: #13a10e;}
+            .color3 {fill: #c19c00;}
+            .color4 {fill: #0037da;}
+            .color5 {fill: #881798;}
+            .color6 {fill: #3a96dd;}
+            .color7 {fill: #cccccc;}
+            .color8 {fill: #767676;}
+            .color9 {fill: #e74856;}
+            .color10 {fill: #16c60c;}
+            .color11 {fill: #f9f1a5;}
+            .color12 {fill: #3b78ff;}
+            .color13 {fill: #b4009e;}
+            .color14 {fill: #61d6d6;}
+            .color15 {fill: #f2f2f2;}
+        </style>
+    </defs>
+    <rect id="terminalui" class="background" width="100%" height="100%" ry="4.5826941"/>
+    <circle cx="24" cy="23" r="7" class="color1"/>
+    <circle cx="44" cy="23" r="7" class="color3"/>
+    <circle cx="64" cy="23" r="7" class="color2"/>
+    <svg id="screen" width="1040" height="493" x="23" y="50" viewBox="0 0 1040 493" preserveAspectRatio="xMidYMin slice"><rect class="background" height="100%" width="100%" x="0" y="0"/><defs><g id="g1"><text x="0" textLength="176" class="foreground">root@ruv-dl:~/ruv-dl# </text><text x="176" textLength="8" class="background"> </text></g><g id="g2"><text x="0" textLength="184" class="foreground">root@ruv-dl:~/ruv-dl# p</text><text x="184" textLength="8" class="background"> </text></g><g id="g3"><text x="0" textLength="192" class="foreground">root@ruv-dl:~/ruv-dl# py</text><text x="192" textLength="8" class="background"> </text></g><g id="g4"><text x="0" textLength="200" class="foreground">root@ruv-dl:~/ruv-dl# pyt</text><text x="200" textLength="8" class="background"> </text></g><g id="g5"><text x="0" textLength="208" class="foreground">root@ruv-dl:~/ruv-dl# pyth</text><text x="208" textLength="8" class="background"> </text></g><g id="g6"><text x="0" textLength="216" class="foreground">root@ruv-dl:~/ruv-dl# pytho</text><text x="216" textLength="8" class="background"> </text></g><g id="g7"><text x="0" textLength="232" class="foreground">root@ruv-dl:~/ruv-dl# python3</text><text x="232" textLength="8" class="background"> </text></g><g id="g8"><text x="0" textLength="240" class="foreground">root@ruv-dl:~/ruv-dl# python3 </text><text x="240" textLength="8" class="background"> </text></g><g id="g9"><text x="0" textLength="248" class="foreground">root@ruv-dl:~/ruv-dl# python3 r</text><text x="248" textLength="8" class="background"> </text></g><g id="g10"><text x="0" textLength="256" class="foreground">root@ruv-dl:~/ruv-dl# python3 ru</text><text x="256" textLength="8" class="background"> </text></g><g id="g11"><text x="0" textLength="296" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/</text><text x="296" textLength="8" class="background"> </text></g><g id="g12"><text x="0" textLength="304" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/r</text><text x="304" textLength="8" class="background"> </text></g><g id="g13"><text x="0" textLength="312" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ru</text><text x="312" textLength="8" class="background"> </text></g><g id="g14"><text x="0" textLength="376" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py </text><text x="376" textLength="8" class="background"> </text></g><g id="g15"><text x="0" textLength="384" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py -</text><text x="384" textLength="8" class="background"> </text></g><g id="g16"><text x="0" textLength="392" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --</text><text x="392" textLength="8" class="background"> </text></g><g id="g17"><text x="0" textLength="400" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --h</text><text x="400" textLength="8" class="background"> </text></g><g id="g18"><text x="0" textLength="408" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --he</text><text x="408" textLength="8" class="background"> </text></g><g id="g19"><text x="0" textLength="416" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --hel</text><text x="416" textLength="8" class="background"> </text></g><g id="g20"><text x="0" textLength="424" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --help</text><text x="424" textLength="8" class="background"> </text></g><g id="g21"><text x="0" textLength="424" class="foreground">root@ruv-dl:~/ruv-dl# python3 ruv-dl/ruv-dl.py --help</text></g><g id="g22"><text x="0" textLength="8" class="background"> </text></g><g id="g23"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="8" class="background"> </text></g><g id="g24"><text x="0" textLength="8" class="foreground"> </text></g><g id="g25"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="40" text-decoration="underline" class="color11">Usage</text><text x="48" textLength="8" class="foreground">:</text></g><g id="g26"><text x="0" textLength="352" class="foreground">  ruv-dl.py -i [-r] [-s] [-t] [-o] [-f] [-h]</text></g><g id="g27"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="144" text-decoration="underline" class="color11">Required arguments</text><text x="152" textLength="8" class="foreground">:</text></g><g id="g28"><text x="0" textLength="160" class="foreground">  -i, --input       </text><text x="192" textLength="176" class="color8">URL of RUV.is content.</text></g><g id="g29"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="144" text-decoration="underline" class="color11">Optional arguments</text><text x="152" textLength="8" class="foreground">:</text></g><g id="g30"><text x="0" textLength="160" class="foreground">  -r, --resolution  </text><text x="160" textLength="104" class="color8">    1 500kbps</text><text x="320" textLength="24" class="color8">Bad</text></g><g id="g31"><text x="0" textLength="264" class="color8">                        2 800kbps</text><text x="320" textLength="64" class="color8">Less bad</text></g><g id="g32"><text x="0" textLength="272" class="color8">                        3 1200kbps</text><text x="320" textLength="32" class="color8">Okay</text></g><g id="g33"><text x="0" textLength="272" class="color8">                        4 2400kbps</text><text x="320" textLength="88" class="color8">Pretty good</text></g><g id="g34"><text x="0" textLength="272" class="color8">                        5 3600kbps</text><text x="320" textLength="152" class="color8">Excellent (default)</text></g><g id="g35"><text x="0" textLength="192" class="foreground">  -s, --subtitles       </text><text x="192" textLength="408" class="color8">Downloads .srt subtitle file from RUV if available.</text></g><g id="g36"><text x="0" textLength="192" class="foreground">  -so, --subs_only      </text><text x="192" textLength="448" class="color8">Exclusively downloads a .srt subtitle file if available.</text></g><g id="g37"><text x="0" textLength="160" class="foreground">  -t, --format      </text><text x="192" textLength="496" class="color8">Any allowed codec by ffmpeg: mp4 (default), mkv, avi, mp3 etc.</text></g><g id="g38"><text x="0" textLength="160" class="foreground">  -o, --output      </text><text x="192" textLength="456" class="color8">Specifies output name. Default name is as RUV defines it.</text></g><g id="g39"><text x="0" textLength="192" class="foreground">  -f, --fancy           </text><text x="192" textLength="488" class="color8">Places output in a new folder and downloads media-thumbnails.</text></g><g id="g40"><text x="0" textLength="192" class="foreground">  -h, --help            </text><text x="192" textLength="272" class="color8">Shows this help message and exits.</text></g><g id="g41"><text x="0" textLength="8" class="foreground"> </text><text x="8" textLength="64" text-decoration="underline" class="color11">Examples</text><text x="72" textLength="16" class="foreground">: </text></g><g id="g42"><text x="0" textLength="600" class="foreground">  python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -s -f</text></g><g id="g43"><text x="0" textLength="32" class="foreground">    </text><text x="32" textLength="680" class="color8">Downloads media in Excellent resolution with .srt file and places into a fancy folder</text></g><g id="g44"><text x="0" textLength="768" class="foreground">  python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -r 1 -o my_filename -t avi</text></g><g id="g45"><text x="0" textLength="32" class="foreground">    </text><text x="32" textLength="456" class="color8">Downloads media in Bad resolution under "my_filename.avi"</text></g></defs><g id="screen_view"><g><rect x="176" y="0" width="8" height="17" class="foreground"/><use xlink:href="#g1" y="0"/></g><g><rect x="184" y="510" width="8" height="17" class="foreground"/><use xlink:href="#g2" y="510"/></g><g><rect x="192" y="1020" width="8" height="17" class="foreground"/><use xlink:href="#g3" y="1020"/></g><g><rect x="200" y="1530" width="8" height="17" class="foreground"/><use xlink:href="#g4" y="1530"/></g><g><rect x="208" y="2040" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="2040"/></g><g><rect x="216" y="2550" width="8" height="17" class="foreground"/><use xlink:href="#g6" y="2550"/></g><g><rect x="232" y="3060" width="8" height="17" class="foreground"/><use xlink:href="#g7" y="3060"/></g><g><rect x="240" y="3570" width="8" height="17" class="foreground"/><use xlink:href="#g8" y="3570"/></g><g><rect x="248" y="4080" width="8" height="17" class="foreground"/><use xlink:href="#g9" y="4080"/></g><g><rect x="256" y="4590" width="8" height="17" class="foreground"/><use xlink:href="#g10" y="4590"/></g><g><rect x="296" y="5100" width="8" height="17" class="foreground"/><use xlink:href="#g11" y="5100"/></g><g><rect x="304" y="5610" width="8" height="17" class="foreground"/><use xlink:href="#g12" y="5610"/></g><g><rect x="312" y="6120" width="8" height="17" class="foreground"/><use xlink:href="#g13" y="6120"/></g><g><rect x="376" y="6630" width="8" height="17" class="foreground"/><use xlink:href="#g14" y="6630"/></g><g><rect x="384" y="7140" width="8" height="17" class="foreground"/><use xlink:href="#g15" y="7140"/></g><g><rect x="392" y="7650" width="8" height="17" class="foreground"/><use xlink:href="#g16" y="7650"/></g><g><rect x="400" y="8160" width="8" height="17" class="foreground"/><use xlink:href="#g17" y="8160"/></g><g><rect x="408" y="8670" width="8" height="17" class="foreground"/><use xlink:href="#g18" y="8670"/></g><g><rect x="416" y="9180" width="8" height="17" class="foreground"/><use xlink:href="#g19" y="9180"/></g><g><rect x="424" y="9690" width="8" height="17" class="foreground"/><use xlink:href="#g20" y="9690"/></g><g><use xlink:href="#g21" y="10200"/><rect x="0" y="10217" width="8" height="17" class="foreground"/><use xlink:href="#g22" y="10217"/></g><g><use xlink:href="#g21" y="10710"/><rect x="8" y="10727" width="8" height="17" class="foreground"/><use xlink:href="#g23" y="10727"/></g><g><use xlink:href="#g21" y="11220"/><use xlink:href="#g24" y="11237"/><rect x="8" y="11254" width="40" height="17" class="color0"/><use xlink:href="#g25" y="11254"/><use xlink:href="#g26" y="11271"/><rect x="8" y="11305" width="144" height="17" class="color0"/><use xlink:href="#g27" y="11305"/><use xlink:href="#g28" y="11322"/><rect x="8" y="11356" width="144" height="17" class="color0"/><use xlink:href="#g29" y="11356"/><use xlink:href="#g30" y="11373"/><use xlink:href="#g31" y="11390"/><use xlink:href="#g32" y="11407"/><use xlink:href="#g33" y="11424"/><use xlink:href="#g34" y="11441"/><use xlink:href="#g35" y="11458"/><use xlink:href="#g36" y="11475"/><use xlink:href="#g37" y="11492"/><use xlink:href="#g38" y="11509"/><use xlink:href="#g39" y="11526"/><use xlink:href="#g40" y="11543"/><rect x="8" y="11577" width="64" height="17" class="color0"/><use xlink:href="#g41" y="11577"/><use xlink:href="#g42" y="11594"/><use xlink:href="#g43" y="11611"/><use xlink:href="#g44" y="11645"/><use xlink:href="#g45" y="11662"/><rect x="0" y="11696" width="8" height="17" class="foreground"/><use xlink:href="#g22" y="11696"/></g><g><use xlink:href="#g21" y="11730"/><use xlink:href="#g24" y="11747"/><rect x="8" y="11764" width="40" height="17" class="color0"/><use xlink:href="#g25" y="11764"/><use xlink:href="#g26" y="11781"/><rect x="8" y="11815" width="144" height="17" class="color0"/><use xlink:href="#g27" y="11815"/><use xlink:href="#g28" y="11832"/><rect x="8" y="11866" width="144" height="17" class="color0"/><use xlink:href="#g29" y="11866"/><use xlink:href="#g30" y="11883"/><use xlink:href="#g31" y="11900"/><use xlink:href="#g32" y="11917"/><use xlink:href="#g33" y="11934"/><use xlink:href="#g34" y="11951"/><use xlink:href="#g35" y="11968"/><use xlink:href="#g36" y="11985"/><use xlink:href="#g37" y="12002"/><use xlink:href="#g38" y="12019"/><use xlink:href="#g39" y="12036"/><use xlink:href="#g40" y="12053"/><rect x="8" y="12087" width="64" height="17" class="color0"/><use xlink:href="#g41" y="12087"/><use xlink:href="#g42" y="12104"/><use xlink:href="#g43" y="12121"/><use xlink:href="#g44" y="12155"/><use xlink:href="#g45" y="12172"/><rect x="176" y="12206" width="8" height="17" class="foreground"/><use xlink:href="#g1" y="12206"/></g><g><use xlink:href="#g21" y="12240"/><use xlink:href="#g24" y="12257"/><rect x="8" y="12274" width="40" height="17" class="color0"/><use xlink:href="#g25" y="12274"/><use xlink:href="#g26" y="12291"/><rect x="8" y="12325" width="144" height="17" class="color0"/><use xlink:href="#g27" y="12325"/><use xlink:href="#g28" y="12342"/><rect x="8" y="12376" width="144" height="17" class="color0"/><use xlink:href="#g29" y="12376"/><use xlink:href="#g30" y="12393"/><use xlink:href="#g31" y="12410"/><use xlink:href="#g32" y="12427"/><use xlink:href="#g33" y="12444"/><use xlink:href="#g34" y="12461"/><use xlink:href="#g35" y="12478"/><use xlink:href="#g36" y="12495"/><use xlink:href="#g37" y="12512"/><use xlink:href="#g38" y="12529"/><use xlink:href="#g39" y="12546"/><use xlink:href="#g40" y="12563"/><rect x="8" y="12597" width="64" height="17" class="color0"/><use xlink:href="#g41" y="12597"/><use xlink:href="#g42" y="12614"/><use xlink:href="#g43" y="12631"/><use xlink:href="#g44" y="12665"/><use xlink:href="#g45" y="12682"/><rect x="176" y="12716" width="8" height="17" class="foreground"/><use xlink:href="#g1" y="12716"/></g></g></svg>
+</svg>

@@ -1,7 +1,6 @@
 import argparse
 from argparse import RawTextHelpFormatter
 import os
-os.system('color')
 
 # Color config
 grey = '\033[90m'
@@ -28,7 +27,7 @@ parser = argparse.ArgumentParser(description = usage,
 
 required = parser.add_argument_group(f' {comfy_underl}Required arguments{endc}')
 required.add_argument('-i', '--input',
-                      help=f'\t{grey}URL of RUV.is content.{endc}',
+                      help=f'\t{grey}URL of ruv.is content.{endc}',
                       metavar = '\b',
                       required=True)
 
@@ -70,3 +69,4 @@ group.add_argument("-h", "--help",
                    help = f'{grey}Shows this help message and exits.{endc}')
 
 args = parser.parse_args()
+print('\n')
