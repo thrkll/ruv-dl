@@ -7,15 +7,15 @@ import subprocess
 import datetime
 import re
 import time
+from pprint import pprint
 
 # Hides terminal cursor
 print('\033[?25l', end="")
 
 def main():
+    ruv_data = get_ruv_data(args.input)
+    content_info = media_info(ruv_data)
     res = resolution(args.resolution) if args.resolution else '3600kbps'
-    content_ids = url_data(args.input)
-    json_data = api_getter(content_ids)
-    content_info = media_info(json_data)
     title = re.sub('[^\w_.)( -]', '', content_info[0])
     filepath = fancy(content_info[2], content_info[3], title)
     if args.subs_only:
@@ -26,7 +26,7 @@ def main():
     filepath += output(args.format) if args.format else '.mp4'
     exists_checker(filepath)
     download(content_info, res, filepath)
-    graceful_exit()
+    graceful_exit() 
 
 def graceful_exit():
     # Makes terminal cursor visible again
@@ -57,38 +57,25 @@ def resolution(arg):
         graceful_exit()
     return res
 
-def url_data(arg):
-    # URL validation
-        # 27.12.19  Links can have the form
+def get_ruv_data(url):
+# Gets json information about content from the RÚV api
+        # 27.12.19  Media slugs can have the following forms
         #           .../spila/content-name/XXXXX?ep=ZZZZZZ
         #           .../spila/content-name/XXXXX/ZZZZZZ
         #           .../spila/content-name/XXXXX
+
+    content_ids = url.replace('?ep=', '/').split('/')[-2:]
+    api_url = f'https://api.ruv.is/api/programs/program/{"/".join(content_ids)}'
     try:
-        content_url = arg.split('ruv.is')[1]
-        if '?ep=' in content_url:
-            content_url = content_url.replace('?ep=', '/')
-        content_ids = content_url.split('/')[-2:]
-
-    except:
-        print('\n Input URL is not valid.')
+        data = requests.get(api_url, timeout=5)
+        data.raise_for_status()
+    except requests.exceptions.HTTPError:
+        print('\nProgram ID not found. Check if URL is valid.')
         graceful_exit()
-
-    return content_ids
-
-def api_getter(content_ids):
-    # Retrieves media data from RUV api
-    ids = "/".join(content_ids)
-    api_url = f'https://api.ruv.is/api/programs/program/{ids}'
-    try:
-        data = requests.get(api_url, timeout=5).json()
-    except:
-        print('\nCould not connect to RUV.is.')
+    except requests.exceptions.RequestException:
+        print('\nCould not connect to ruv.is.')
         graceful_exit()
-
-    if not 'title' in data:
-        print('\n Program ID not found. Check if URL is valid.')
-        graceful_exit()
-
+    data = data.json()
     return data
 
 def media_info(data):
