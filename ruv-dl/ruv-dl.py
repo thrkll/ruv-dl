@@ -8,18 +8,10 @@ import datetime
 import re
 import time
 
-if os.name == 'nt':
-    import msvcrt
-    import ctypes
-
-    os.system('color')
-    class _CursorInfo(ctypes.Structure):
-        _fields_ = [("size", ctypes.c_int),
-                    ("visible", ctypes.c_byte)]
+# Hides terminal cursor
+print('\033[?25l', end="")
 
 def main():
-    hide_cursor()
-    ffmpeg_check()
     res = resolution(args.resolution) if args.resolution else '3600kbps'
     content_ids = url_data(args.input)
     json_data = api_getter(content_ids)
@@ -28,36 +20,31 @@ def main():
     filepath = fancy(content_info[2], content_info[3], title)
     if args.subs_only:
         subtitles(content_info[4], filepath)
-        sys.exit()
+        graceful_exit()
     elif args.subtitles:
         subtitles(content_info[4], filepath)
     filepath += output(args.format) if args.format else '.mp4'
     exists_checker(filepath)
     download(content_info, res, filepath)
+    graceful_exit()
 
-def hide_cursor():
-    if os.name == 'nt':
-        ci = _CursorInfo()
-        handle = ctypes.windll.kernel32.GetStdHandle(-11)
-        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
-        ci.visible = False
-        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
-    elif os.name == 'posix':
-        sys.stdout.write("\033[?25l")
-        sys.stdout.flush()
+def graceful_exit():
+    # Makes terminal cursor visible again
+    print('\033[?25h', end="")
+    sys.exit()
 
 def exists_checker(filepath):
     # Checks whether file already exists
-    if os.path.isfile(filepath) == True:
+    if os.path.isfile(filepath):
         answer = input(f'\n File already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
         if answer.lower() != 'y':
-            sys.exit()
+            graceful_exit()
 
 def ffmpeg_check():
     # Checks whether ffmpeg is in PATH
     if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
         print('\nCould not locate ffmpeg/ffprobe.')
-        sys.exit()
+        graceful_exit()
 
 def resolution(arg):
     if arg == '1': res = "500kbps"
@@ -67,7 +54,7 @@ def resolution(arg):
     elif arg == '5': res = "3600kbps"
     else:
         print(' --resolution can be set to 1, 2, 3, 4 or 5. \n See --help.')
-        sys.exit()
+        graceful_exit()
     return res
 
 def url_data(arg):
@@ -84,7 +71,7 @@ def url_data(arg):
 
     except:
         print('\n Input URL is not valid.')
-        sys.exit()
+        graceful_exit()
 
     return content_ids
 
@@ -96,11 +83,11 @@ def api_getter(content_ids):
         data = requests.get(api_url, timeout=5).json()
     except:
         print('\nCould not connect to RUV.is.')
-        sys.exit()
+        graceful_exit()
 
     if not 'title' in data:
         print('\n Program ID not found. Check if URL is valid.')
-        sys.exit()
+        graceful_exit()
 
     return data
 
@@ -125,7 +112,7 @@ def media_info(data):
         subtitle_url = data['episodes'][0]['subtitles_url']
     except:
         print('\n Content not available.')
-        sys.exit()
+        graceful_exit()
 
     return title, content_link, image_links, description, subtitle_url
 
@@ -139,12 +126,12 @@ def fancy(image_links, description, filename):
         if os.path.exists(new_folder):
             answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
             if answer.lower() != 'y':
-                sys.exit()
+                graceful_exit()
             try:
                 shutil.rmtree(new_folder)
             except PermissionError:
                 print('\n Could not delete pre-existing folder. Please close all files.')
-                sys.exit()
+                graceful_exit()
 
         # Makes new folder
         os.makedirs(new_folder)
@@ -205,7 +192,7 @@ def output(format):
 
     if format not in ffmpeg_formats:
         print('\n Unsupported file format.')
-        sys.exit()
+        graceful_exit()
 
     format = '.' + format
     return format
@@ -258,7 +245,7 @@ def download(content_info, res, filepath):
     for line in process.stdout:
         if 'Unsupported codec' in line:
             print(f'\n Codec is unsupported, got: {args.format}')
-            sys.exit()
+            graceful_exit()
         h,m,s = line.split('time=')[1][:8].split(':')
         media_done = int(datetime.timedelta(hours=int(h),
                                             minutes=int(m),
@@ -283,14 +270,15 @@ def download(content_info, res, filepath):
 
     duration = round_time(final_time)
 
+    # Erases progress bar
     sys.stdout.write("\033[K")
     print(f'\n {grey_underl}Download completed in {duration}{endc}\n\n')
 
-    sys.exit()  
+    graceful_exit() 
 
 while True:
     try:
         main()
     except KeyboardInterrupt:
         print('\n\n Exiting...')
-        sys.exit()
+        graceful_exit()
