@@ -1,4 +1,4 @@
-from arguments import *
+from arguments import clr, args
 import shutil
 import sys
 import requests
@@ -14,9 +14,9 @@ print('\033[?25l', end="")
 
 def main():
     ruv_data = get_ruv_data(args.input)
-    content_info = media_info(ruv_data)
+    attributes = media_attributes(ruv_data)
+
     res = resolution(args.resolution) if args.resolution else '3600kbps'
-    title = re.sub('[^\w_.)( -]', '', content_info[0])
     filepath = fancy(content_info[2], content_info[3], title)
     if args.subs_only:
         subtitles(content_info[4], filepath)
@@ -36,7 +36,7 @@ def graceful_exit():
 def exists_checker(filepath):
     # Checks whether file already exists
     if os.path.isfile(filepath):
-        answer = input(f'\n File already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
+        answer = input(f'\n File already exists. Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ')
         if answer.lower() != 'y':
             graceful_exit()
 
@@ -57,7 +57,7 @@ def resolution(arg):
         graceful_exit()
     return res
 
-def get_ruv_data(url):
+def get_ruv_data(url) -> dict:
 # Gets json information about content from the RÚV api
         # 27.12.19  Media slugs can have the following forms
         #           .../spila/content-name/XXXXX?ep=ZZZZZZ
@@ -78,30 +78,39 @@ def get_ruv_data(url):
     data = data.json()
     return data
 
-def media_info(data):
-    try:
-        # Defines title as RUV defines it...
-        title = data['title']
-        if data['multiple_episodes'] == True:
-            secondary_title = data['episodes'][0]['title']
-            title = f'{title} - {secondary_title}'
+def media_attributes(ruv_data) -> dict:
+# Defines media attributes used by other functions
+    attributes = {}
 
-        # ...unless user defined by -o flag
-        if args.output:
-            title = args.output
+    # Title - As RUV defines it...
+    title = ruv_data['title']
+    if ruv_data['multiple_episodes'] == True:
+        secondary_title = ruv_data['episodes'][0]['title']
+        title = f'{title} - {secondary_title}'
+    
+    # ...unless defined by user with -o flag...
+    if args.output:
+        title = args.output
 
-        content_link = ':'.join(data['episodes'][0]['file'].split(':')[:2])
-        image_links = [data['image'], data['portrait_image']]
-        description = data['description']
+    # ... and anitizes filename
+    title = re.sub('[^\w_.)( -]', '', title)
+    attributes['title'] = title
 
-        # Concatenates, in case description is stored in multiple lines
-        description = '\n'.join(description)
-        subtitle_url = data['episodes'][0]['subtitles_url']
-    except:
-        print('\n Content not available.')
-        graceful_exit()
+    # Media content link
+    attributes['content_url'] = ruv_data['episodes'][0]['file']
 
-    return title, content_link, image_links, description, subtitle_url
+    # Subtitle link
+    attributes['subtitle_url'] = ruv_data['episodes'][0]['subtitles_url']
+
+    # Image links
+    attributes['image_urls'] = [ruv_data['image'], ruv_data['portrait_image']]
+
+    # Description
+    attributes['description'] = '\n'.join(ruv_data['description'])
+
+    return attributes
+
+    # return title, content_link, image_links, description, subtitle_url
 
 def fancy(image_links, description, filename):
     title = filename.split('.')[0]
@@ -111,7 +120,7 @@ def fancy(image_links, description, filename):
 
         # Checks whether folder already exists
         if os.path.exists(new_folder):
-            answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
+            answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ')
             if answer.lower() != 'y':
                 graceful_exit()
             try:
@@ -147,7 +156,7 @@ def fancy(image_links, description, filename):
 def subtitles(subtitle_url, filepath):
     # Returns if no subtitle link available
     if subtitle_url == None:
-        print(f'\n No subtitles available {comfy}:({endc}')
+        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
         return
 
     # Downloads subtitle file and converts .vtt file to .srt
@@ -208,7 +217,7 @@ def download(content_info, res, filepath):
         bar_len = 50
         filled_len = int(round(bar_len * count / float(total)))
         percents = round(100.0 * count / float(total), 1)
-        bar = f'{grey}#{endc}' * filled_len + f'{grey}-{endc}' * (bar_len - filled_len)
+        bar = f'{clr[1]}#{clr[5]}' * filled_len + f'{clr[1]}-{clr[5]}' * (bar_len - filled_len)
         print("\r", end="")
         print(' [{}] {}{}'.format(bar, percents, '%'), end='', flush=True)
         
@@ -223,7 +232,7 @@ def download(content_info, res, filepath):
                                universal_newlines=True,
                                shell=True)
     filepath = filepath.split('/')[-1]
-    print(f'\n Downloading {comfy}{filepath}{endc}...')
+    print(f'\n Downloading {clr[3]}{filepath}{clr[5]}...')
 
     # Measures duration
     start_time = time.time()
@@ -259,7 +268,7 @@ def download(content_info, res, filepath):
 
     # Erases progress bar
     sys.stdout.write("\033[K")
-    print(f'\n {grey_underl}Download completed in {duration}{endc}\n\n')
+    print(f'\n {clr[2]}Download completed in {duration}{clr[5]}\n')
 
     graceful_exit() 
 
