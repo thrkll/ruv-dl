@@ -13,10 +13,19 @@ from pprint import pprint
 print('\033[?25l', end="")
 
 def main():
+    # Gets data from the RUV api and defines necessary attributes
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
+    resolution = resolution_setting()                       
+    # filename = filename(attributes)                           # TODO
 
-    res = resolution(args.resolution) if args.resolution else '3600kbps'
+    # Optional parameters                                       # TODO
+    # if args.subtitles or args.subs_only:                      
+    #     subtitles = subtitles(attributes)
+    # if args.fancy:
+    #     fancy_folder = fancy_folder(attributes)
+
+    
     filepath = fancy(content_info[2], content_info[3], title)
     if args.subs_only:
         subtitles(content_info[4], filepath)
@@ -46,16 +55,24 @@ def ffmpeg_check():
         print('\nCould not locate ffmpeg/ffprobe.')
         graceful_exit()
 
-def resolution(arg):
-    if arg == '1': res = "500kbps"
-    elif arg == '2': res = "800kbps"
-    elif arg == '3': res = "1200kbps"
-    elif arg == '4': res = "2400kbps"
-    elif arg == '5': res = "3600kbps"
+def resolution_setting():
+    available_resolutions = {
+        1 : "500kbps",
+        2 : "800kbps",
+        3 : "1200kbps",
+        4 : "2400kbps",
+        5 : "3600kbps"}
+
+    if args.resolution: 
+        try: 
+            resolution = available_resolutions[int(args.resolution)]
+        except KeyError:
+            print('\n Resolution can only be set to 1, 2, 3, 4 or 5.')
+            print(' Refer to --help.')
+            graceful_exit()
     else:
-        print(' --resolution can be set to 1, 2, 3, 4 or 5. \n See --help.')
-        graceful_exit()
-    return res
+        resolution = available_resolutions[5]
+    return resolution
 
 def get_ruv_data(url) -> dict:
 # Gets json information about content from the RÚV api
@@ -92,7 +109,7 @@ def media_attributes(ruv_data) -> dict:
     if args.output:
         title = args.output
 
-    # ... and anitizes filename
+    # ... and sanitizes filename
     title = re.sub('[^\w_.)( -]', '', title)
     attributes['title'] = title
 
