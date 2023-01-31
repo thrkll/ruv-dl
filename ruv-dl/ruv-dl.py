@@ -16,26 +16,21 @@ def main():
     # Gets data from the RUV api and defines necessary attributes
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
-    resolution = resolution_setting()                       
-    # filename = filename(attributes)                           # TODO
+    resolution = resolution_setting()
+    attributes['filepath'] = filepath_setting(attributes)
 
-    # Optional parameters                                       # TODO
-    # if args.subtitles or args.subs_only:                      
-    #     subtitles = subtitles(attributes)
+    # Optional parameters                      
+    if args.subtitles or args.subs_only:
+        subtitles(attributes)
     # if args.fancy:
     #     fancy_folder = fancy_folder(attributes)
 
     
-    filepath = fancy(content_info[2], content_info[3], title)
-    if args.subs_only:
-        subtitles(content_info[4], filepath)
-        graceful_exit()
-    elif args.subtitles:
-        subtitles(content_info[4], filepath)
-    filepath += output(args.format) if args.format else '.mp4'
-    exists_checker(filepath)
-    download(content_info, res, filepath)
-    graceful_exit() 
+    # filepath = fancy(content_info[2], content_info[3], title)
+    # filepath += output(args.format) if args.format else '.mp4'
+    # exists_checker(filepath)
+    # download(content_info, res, filepath)
+    # graceful_exit() 
 
 def graceful_exit():
     # Makes terminal cursor visible again
@@ -129,6 +124,30 @@ def media_attributes(ruv_data) -> dict:
 
     # return title, content_link, image_links, description, subtitle_url
 
+def filepath_setting(attributes):
+    title = attributes['title']
+    filepath = title
+    if args.fancy:
+        # Defines a new folder under content title
+        new_folder = './' + title
+        # Checks whether folder already exists
+        if os.path.exists(new_folder):
+            answer = input(f'''\n Fancy folder already exists. 
+            \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
+            if answer.lower() != 'y':
+                graceful_exit()
+            # Removes existing folder
+            try:
+                shutil.rmtree(new_folder)
+            except PermissionError:
+                print('''\n Could not delete pre-existing folder. 
+                \r Please close all open files and folders.''')
+                graceful_exit()
+        # Makes new folder
+        os.makedirs(new_folder)
+        filepath = new_folder + '/' + title
+    return filepath
+
 def fancy(image_links, description, filename):
     title = filename.split('.')[0]
     if args.fancy:
@@ -170,20 +189,25 @@ def fancy(image_links, description, filename):
 
     return filepath
 
-def subtitles(subtitle_url, filepath):
-    # Returns if no subtitle link available
-    if subtitle_url == None:
-        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
-        return
+def subtitles(attributes):
+    filepath = attributes['filepath']
 
+    # Returns if no subtitle link available
+    if attributes['subtitle_url'] == None:
+        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
+        graceful_exit()
+    
     # Downloads subtitle file and converts .vtt file to .srt
-    r = requests.get(subtitle_url)
+    r = requests.get(attributes['subtitle_url'])
     open(filepath + '.vtt', 'wb').write(r.content)
     os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{filepath}.srt"')
 
     # Removes downloaded .vtt file
     os.remove(filepath + '.vtt')
     print('\n Subtitles downloaded')
+    
+    if args.subs_only:
+        graceful_exit()
 
 def output(format):
     # Checks whether output format is supported by ffmpeg
