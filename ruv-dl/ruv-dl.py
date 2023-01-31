@@ -13,6 +13,9 @@ from pprint import pprint
 print('\033[?25l', end="")
 
 def main():
+    # Checks whether user has ffmpeg/ffprobe in $PATH
+    ffmpeg_check()
+
     # Gets data from the RUV api and defines necessary attributes
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
@@ -22,15 +25,14 @@ def main():
     # Optional parameters                      
     if args.subtitles or args.subs_only:
         subtitles(attributes)
-    # if args.fancy:
-    #     fancy_folder = fancy_folder(attributes)
-
-    
-    # filepath = fancy(content_info[2], content_info[3], title)
+    if args.fancy:
+        fancy_folder(attributes)
+    # if args.format:
+    #     codec = format_setting(attributes)
     # filepath += output(args.format) if args.format else '.mp4'
     # exists_checker(filepath)
     # download(content_info, res, filepath)
-    # graceful_exit() 
+    graceful_exit() 
 
 def graceful_exit():
     # Makes terminal cursor visible again
@@ -45,7 +47,6 @@ def exists_checker(filepath):
             graceful_exit()
 
 def ffmpeg_check():
-    # Checks whether ffmpeg is in PATH
     if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
         print('\nCould not locate ffmpeg/ffprobe.')
         graceful_exit()
@@ -126,7 +127,7 @@ def media_attributes(ruv_data) -> dict:
 
 def filepath_setting(attributes):
     title = attributes['title']
-    filepath = title
+    filepath = './'
     if args.fancy:
         # Defines a new folder under content title
         new_folder = './' + title
@@ -145,52 +146,30 @@ def filepath_setting(attributes):
                 graceful_exit()
         # Makes new folder
         os.makedirs(new_folder)
-        filepath = new_folder + '/' + title
+        filepath = f'{new_folder}/'
     return filepath
 
-def fancy(image_links, description, filename):
-    title = filename.split('.')[0]
-    if args.fancy:
-        # Defines a new folder under content title
-        new_folder = './' + filename
+def fancy_folder(attributes):
+    filepath = attributes['filepath']
+    
+    # Saves images to file
+    suffix = ['_thumbnail.jpg', '_portrait.jpg']
+    for url in attributes['image_urls']:
+        try:
+            image = requests.get(url)
+            open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
+        except requests.exceptions.RequestException:
+            print('\nCould not download image from ruv.is.')
+        suffix.pop(0)
 
-        # Checks whether folder already exists
-        if os.path.exists(new_folder):
-            answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ')
-            if answer.lower() != 'y':
-                graceful_exit()
-            try:
-                shutil.rmtree(new_folder)
-            except PermissionError:
-                print('\n Could not delete pre-existing folder. Please close all files.')
-                graceful_exit()
-
-        # Makes new folder
-        os.makedirs(new_folder)
-
-        # Downloads images and places in folder
-        def image_download(suffix, index):
-            try:
-                r = requests.get(image_links[index])
-                open(new_folder + '/' + filename + suffix, 'wb').write(r.content)
-            except:
-                pass
-        image_download('_thumbnail.jpg', 0)
-        image_download('_portrait.jpg', 1)
-
-        # Saves description to file
-        text_file = new_folder + '/description.txt'
-        file = open(text_file, 'x').write(description)
-
-        filepath = filename + '/' + filename
-
-    else:
-        filepath = filename
-
-    return filepath
+    # Saves description text to file
+    file = open(f'{filepath}description.txt', 
+                'x', 
+                encoding='utf8').write(attributes['description'])
 
 def subtitles(attributes):
     filepath = attributes['filepath']
+    output = filepath + attributes['title']
 
     # Returns if no subtitle link available
     if attributes['subtitle_url'] == None:
@@ -200,12 +179,13 @@ def subtitles(attributes):
     # Downloads subtitle file and converts .vtt file to .srt
     r = requests.get(attributes['subtitle_url'])
     open(filepath + '.vtt', 'wb').write(r.content)
-    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{filepath}.srt"')
+    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{output}.srt"')
 
     # Removes downloaded .vtt file
     os.remove(filepath + '.vtt')
     print('\n Subtitles downloaded')
-    
+
+    # Exits if -so argument is provided
     if args.subs_only:
         graceful_exit()
 
