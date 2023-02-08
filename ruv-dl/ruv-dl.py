@@ -28,25 +28,17 @@ def main():
         subtitles(attributes)
     if args.fancy:
         fancy_folder(attributes)
-        
-    # if args.format:
-    #     codec = format_setting(attributes)
-    # filepath += output(args.format) if args.format else '.mp4'
-    # exists_checker(filepath)
+
+    # Downloads media content
     # download(content_info, res, filepath)
+
+    # Our job here is done
     graceful_exit() 
 
 def graceful_exit() -> None:
     # Makes terminal cursor visible again
     print('\033[?25h', end="")
     sys.exit()
-
-def exists_checker(filepath):
-    # Checks whether file already exists
-    if os.path.isfile(filepath):
-        answer = input(f'\n File already exists. Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ')
-        if answer.lower() != 'y':
-            graceful_exit()
 
 def ffmpeg_check() -> None:
     if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
@@ -133,12 +125,14 @@ def filepath_setting(attributes) -> str:
     if args.fancy:
         # Defines a new folder under content title
         new_folder = './' + title
+
         # Checks whether folder already exists
         if os.path.exists(new_folder):
             answer = input(f'''\n Fancy folder already exists. 
             \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
             if answer.lower() != 'y':
                 graceful_exit()
+
             # Removes existing folder
             try:
                 shutil.rmtree(new_folder)
@@ -146,9 +140,18 @@ def filepath_setting(attributes) -> str:
                 print('''\n Could not delete pre-existing folder. 
                 \r Please close all open files and folders.''')
                 graceful_exit()
+
         # Makes new folder
         os.makedirs(new_folder)
         filepath = f'{new_folder}/'
+
+    # Checks whether file already exists
+    if os.path.isfile(filepath):
+        answer = input(f'''\n File already exists. 
+        \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
+        if answer.lower() != 'y':
+            graceful_exit()
+
     return filepath
 
 def fancy_folder(attributes) -> None:
