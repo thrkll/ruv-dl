@@ -19,14 +19,16 @@ def main():
     # Gets data from the RUV api and defines necessary attributes
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
-    resolution = resolution_setting()
     attributes['filepath'] = filepath_setting(attributes)
+    attributes['resolution'] = resolution_setting()
+    attributes['format'] = format_setting()
 
     # Optional parameters                      
     if args.subtitles or args.subs_only:
         subtitles(attributes)
     if args.fancy:
         fancy_folder(attributes)
+        
     # if args.format:
     #     codec = format_setting(attributes)
     # filepath += output(args.format) if args.format else '.mp4'
@@ -34,7 +36,7 @@ def main():
     # download(content_info, res, filepath)
     graceful_exit() 
 
-def graceful_exit():
+def graceful_exit() -> None:
     # Makes terminal cursor visible again
     print('\033[?25h', end="")
     sys.exit()
@@ -46,12 +48,12 @@ def exists_checker(filepath):
         if answer.lower() != 'y':
             graceful_exit()
 
-def ffmpeg_check():
+def ffmpeg_check() -> None:
     if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
         print('\nCould not locate ffmpeg/ffprobe.')
         graceful_exit()
 
-def resolution_setting():
+def resolution_setting() -> str:
     available_resolutions = {
         1 : "500kbps",
         2 : "800kbps",
@@ -125,7 +127,7 @@ def media_attributes(ruv_data) -> dict:
 
     # return title, content_link, image_links, description, subtitle_url
 
-def filepath_setting(attributes):
+def filepath_setting(attributes) -> str:
     title = attributes['title']
     filepath = './'
     if args.fancy:
@@ -149,7 +151,7 @@ def filepath_setting(attributes):
         filepath = f'{new_folder}/'
     return filepath
 
-def fancy_folder(attributes):
+def fancy_folder(attributes) -> None:
     filepath = attributes['filepath']
     
     # Saves images to file
@@ -167,7 +169,7 @@ def fancy_folder(attributes):
                 'x', 
                 encoding='utf8').write(attributes['description'])
 
-def subtitles(attributes):
+def subtitles(attributes) -> None:
     filepath = attributes['filepath']
     output = filepath + attributes['title']
 
@@ -189,30 +191,33 @@ def subtitles(attributes):
     if args.subs_only:
         graceful_exit()
 
-def output(format):
-    # Checks whether output format is supported by ffmpeg
-    format.replace('.', '')
-    cmd = 'ffmpeg -formats'
-    process = subprocess.Popen(cmd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
-    ffmpeg_formats = []
-    for line in process.stdout:
-        a = line.split()
-        if len(a) > 2:
-            f = ['D', 'E', 'DE']
-            for i in f:
-                if i in a[0]:
-                    ffmpeg_formats.append(a[1])
+def format_setting() -> str:
+    if args.format:
+        file_format = args.format
+        file_format.replace('.', '')
 
-    if format not in ffmpeg_formats:
-        print('\n Unsupported file format.')
-        graceful_exit()
+        # Checks whether output format is supported by ffmpeg
+        cmd = ['ffmpeg', '-formats']
+        process = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                universal_newlines=True)
+        ffmpeg_formats = []
+        for line in process.stdout:
+            a = line.split()
+            if len(a) > 2:
+                f = ['D', 'E', 'DE']
+                for i in f:
+                    if i in a[0]:
+                        ffmpeg_formats.append(a[1])
+        if file_format not in ffmpeg_formats:
+            print('\n File format is not supported by FFmpeg.')
+            graceful_exit()
+        file_format = '.' + file_format
+    else:
+        file_format = '.mp4'
 
-    format = '.' + format
-    return format
+    return file_format
 
 def download(content_info, res, filepath):
     # Sets resolution
