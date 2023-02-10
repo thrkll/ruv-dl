@@ -41,9 +41,19 @@ def graceful_exit() -> None:
     sys.exit()
 
 def ffmpeg_check() -> None:
-    if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
-        print('\nCould not locate ffmpeg/ffprobe.')
-        graceful_exit()
+    # Adds ffmpeg/ffprobe location to $PATH if specified by user
+    if args.ffmpeg_loc:
+        if os.path.exists(args.ffmpeg_loc):
+            os.environ['PATH'] += os.pathsep + args.ffmpeg_loc
+
+    # Checks whether ffmpeg/ffprobe is in $PATH
+    try: 
+        if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
+            raise TypeError
+    except TypeError:
+            print('\n Could not locate ffmpeg/ffprobe in $PATH.')
+            print(' Refer to --help.')
+            graceful_exit()
 
 def resolution_setting() -> str:
     valid_resolutions = [1, 2, 3]
