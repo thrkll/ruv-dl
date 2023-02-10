@@ -1,6 +1,5 @@
 import argparse
 import os
-
 # Color config
 clr = {
     1 : '\033[90m',         # Grey
@@ -11,14 +10,14 @@ clr = {
 }
 
 sample_1 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -s -f
-    {clr[1]}Downloads media in Excellent resolution with .srt file and places into a fancy folder{clr[5]}'''
-sample_2 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -r 1 -o my_filename -t avi
-    {clr[1]}Downloads media in Bad resolution under "my_filename.avi"{clr[5]}'''
+    {clr[1]}Downloads media in Very good resolution with .srt file and places into a fancy folder{clr[5]}'''
+sample_2 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -r 3 -o my_filename -t avi
+    {clr[1]}Downloads media in Okay resolution under "my_filename.avi"{clr[5]}'''
 
 
 epilog = f' {clr[4]}Examples{clr[5]}: \n {sample_1}\n\n {sample_2}\n'
 
-usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-r] [-s] [-t] [-o] [-f] [-h]'
+usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-r] [-s] [-t] [-o] [-f] [-l] [-h]'
 
 parser = argparse.ArgumentParser(description = usage,
                                  formatter_class = argparse.RawTextHelpFormatter,
@@ -37,11 +36,9 @@ group = parser.add_argument_group(f' {clr[4]}Optional arguments{clr[5]}')
 group.add_argument('-r', '--resolution',
                     type = str,
                     metavar='\b',
-                    help = f'''{clr[1]}    1 500kbps\tBad
-2 800kbps\tLess bad
-3 1200kbps\tOkay
-4 2400kbps\tPretty good
-5 3600kbps\tExcellent (default){clr[5]}''')
+                    help = f'''{clr[1]}1 3600kbps\t1920x1080\rVery good (default)
+2 2400kbps\t1280x720\tPretty good
+3 1200kbps\t852x480\tOkay{clr[5]}''')
 
 group.add_argument('-s', '--subtitles',
                     action='store_true',
@@ -64,6 +61,11 @@ group.add_argument('-o','--output',
 group.add_argument('-f', '--fancy',
                     action = 'store_true',
                     help = f'{clr[1]}Places output in a new folder and downloads media-thumbnails.{clr[5]}')
+
+group.add_argument('-l', '--ffmpeg_loc',
+                    type = str,
+                    metavar = '\b',
+                    help = f'{clr[1]}Specify a path for ffmpeg if it is not in $PATH.{clr[5]}')
 
 group.add_argument("-h", "--help",
                    action = "help",
