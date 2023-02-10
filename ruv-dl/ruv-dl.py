@@ -10,7 +10,7 @@ import time
 from pprint import pprint
 
 # Hides terminal cursor
-print('\033[?25l', end="")
+# print('\033[?25l', end="")
 
 def main():
     # Checks whether user has ffmpeg/ffprobe in $PATH
@@ -30,7 +30,7 @@ def main():
         fancy_folder(attributes)
 
     # Downloads media content
-    # download(content_info, res, filepath)
+    download(attributes)
 
     # Our job here is done
     graceful_exit() 
@@ -46,22 +46,18 @@ def ffmpeg_check() -> None:
         graceful_exit()
 
 def resolution_setting() -> str:
-    available_resolutions = {
-        1 : "500kbps",
-        2 : "800kbps",
-        3 : "1200kbps",
-        4 : "2400kbps",
-        5 : "3600kbps"}
-
-    if args.resolution: 
-        try: 
-            resolution = available_resolutions[int(args.resolution)]
+    valid_resolutions = [1, 2, 3]
+    if args.resolution:
+        try:
+            if args.resolution not in valid_resolutions:
+                raise KeyError
         except KeyError:
-            print('\n Resolution can only be set to 1, 2, 3, 4 or 5.')
+            print('\n Resolution can only be set to 1, 2 or 3.')
             print(' Refer to --help.')
             graceful_exit()
+        resolution = args.resolution
     else:
-        resolution = available_resolutions[5]
+        resolution = valid_resolutions[0]
     return resolution
 
 def get_ruv_data(url) -> dict:
@@ -222,12 +218,10 @@ def format_setting() -> str:
 
     return file_format
 
-def download(content_info, res, filepath):
-    # Sets resolution
-    download_link = content_info[1].replace('2400kbps', res)
+def download(attributes):
 
     # Finds media duration with ffprobe
-    cmd = f'ffprobe "{download_link}"'
+    cmd = f'ffprobe "{attributes["content_url"]}"'
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
@@ -254,7 +248,7 @@ def download(content_info, res, filepath):
             print("\r", end="")
 
     # Defines process
-    cmd = f'ffmpeg -y -loglevel error -stats -i "{download_link}" -c copy "{filepath}"'
+    cmd = f'ffmpeg -y -loglevel error -stats -i "{attributes["content_url"]}" -map p:{attributes["resolution"]} -c copy "{filepath}"'
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
