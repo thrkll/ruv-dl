@@ -11,6 +11,7 @@ from pprint import pprint
 
 # Hides terminal cursor
 # print('\033[?25l', end="")
+os.system('color')
 
 def main():
     # Checks whether user has ffmpeg/ffprobe in $PATH
@@ -21,7 +22,7 @@ def main():
     attributes = media_attributes(ruv_data)
     attributes['filepath'] = filepath_setting(attributes)
     attributes['resolution'] = resolution_setting()
-    attributes['format'] = format_setting()
+    attributes['file_format'] = format_setting()
 
     # Optional parameters                      
     if args.subtitles or args.subs_only:
@@ -229,14 +230,12 @@ def format_setting() -> str:
     return file_format
 
 def download(attributes):
-
     # Finds media duration with ffprobe
-    cmd = f'ffprobe "{attributes["content_url"]}"'
+    cmd = ['ffprobe', f'{attributes["content_url"]}']
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
+                               universal_newlines=True)
     for line in process.stdout:
         if 'Duration:' in line:
             h,m,s = line.split('Duration: ')[1][:8].split(':')
@@ -258,14 +257,16 @@ def download(attributes):
             print("\r", end="")
 
     # Defines process
-    cmd = f'ffmpeg -y -loglevel error -stats -i "{attributes["content_url"]}" -map p:{attributes["resolution"]} -c copy "{filepath}"'
+    output_title = attributes['title'] + attributes['file_format']
+    output_link = attributes['filepath'] + output_title
+    cmd = f'ffmpeg -y -loglevel error -stats -i {attributes["content_url"]} -map p:{attributes["resolution"]} -c copy "{output_link}"'
+
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
                                universal_newlines=True,
                                shell=True)
-    filepath = filepath.split('/')[-1]
-    print(f'\n Downloading {clr[3]}{filepath}{clr[5]}...')
+    print(f'\n Downloading {clr[3]}{output_title}{clr[5]}...')
 
     # Measures duration
     start_time = time.time()
