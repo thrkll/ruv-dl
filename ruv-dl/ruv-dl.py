@@ -21,8 +21,8 @@ def main():
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
     attributes['filepath'] = filepath_setting(attributes)
-    attributes['resolution'] = resolution_setting()
     attributes['file_format'] = format_setting()
+    attributes['resolution'] = resolution_setting()
 
     # Optional parameters                      
     if args.subtitles or args.subs_only:
@@ -231,18 +231,26 @@ def format_setting() -> str:
 
 def download(attributes):
     # Finds media duration with ffprobe
-    cmd = ['ffprobe', f'{attributes["content_url"]}']
+    cmd = ['ffprobe', 
+        '-v',
+        'error',
+        '-show_entries',
+        'format=duration',
+        '-of',
+        'default=noprint_wrappers=1:nokey=1',
+        f'{attributes["content_url"]}']
     process = subprocess.Popen(cmd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               universal_newlines=True)
-    for line in process.stdout:
-        if 'Duration:' in line:
-            h,m,s = line.split('Duration: ')[1][:8].split(':')
-            media_duration = int(datetime.timedelta(hours=int(h),
-                                                    minutes=int(m),
-                                                    seconds=int(s)).total_seconds())
-            break
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True)
+    line = process.stdout.readlines()[0]
+    try:    
+        media_duration = float(line)
+    except ValueError as error_message:
+        if '403 Forbidden' in line:
+            print('\n Not allowed to download. Check if content is geoblocked.')
+        else:
+            print(f'\n Unexpected error: {error_message}')
+        graceful_exit()
 
     # Progress bar
     def progress(count, total, status=''):
@@ -259,7 +267,14 @@ def download(attributes):
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
     output_link = attributes['filepath'] + output_title
-    cmd = f'ffmpeg -y -loglevel error -stats -i {attributes["content_url"]} -map p:{attributes["resolution"]} -c copy "{output_link}"'
+    
+    # Defines map argument for video resolution settings
+    if attributes['content_url'].endswith('.m3u8'):
+        video_res = f'-map p:{attributes["resolution"]}'
+    else:
+        video_res = ''
+        
+    cmd = f'ffmpeg -y -loglevel error -stats -i {attributes["content_url"]} {video_res} -c copy "{output_link}"'
 
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
