@@ -23,6 +23,7 @@ def main():
     attributes['filepath'] = filepath_setting(attributes)
     attributes['file_format'] = format_setting()
     attributes['resolution'] = resolution_setting()
+    attributes['media_duration'] = media_duration(attributes)
 
     # Optional parameters                      
     if args.subtitles or args.subs_only:
@@ -229,7 +230,7 @@ def format_setting() -> str:
 
     return file_format
 
-def download(attributes):
+def media_duration(attributes):
     # Finds media duration with ffprobe
     cmd = ['ffprobe', 
         '-v',
@@ -251,15 +252,21 @@ def download(attributes):
         else:
             print(f'\n Unexpected error: {error_message}')
         graceful_exit()
+    return media_duration
+
+def download(attributes):
+    media_duration = attributes['media_duration']
 
     # Progress bar
-    def progress(count, total, status=''):
+    def progress(count, total):
         bar_len = 50
         filled_len = int(round(bar_len * count / float(total)))
         percents = round(100.0 * count / float(total), 1)
-        bar = f'{clr[1]}#{clr[5]}' * filled_len + f'{clr[1]}-{clr[5]}' * (bar_len - filled_len)
+        fill_symbol = f'{clr[1]}#{clr[5]}'
+        empty_symbol = f'{clr[1]}-{clr[5]}'
+        bar = fill_symbol * filled_len + empty_symbol * (bar_len - filled_len)
         print("\r", end="")
-        print(' [{}] {}{}'.format(bar, percents, '%'), end='', flush=True)
+        print(f' [{bar}] {percents}%', end='', flush=True)
         
         if percents == 100:
             print("\r", end="")
@@ -268,7 +275,7 @@ def download(attributes):
     output_title = attributes['title'] + attributes['file_format']
     output_link = attributes['filepath'] + output_title
     
-    # Defines map argument for video resolution settings
+    # Map argument for video resolution settings
     if attributes['content_url'].endswith('.m3u8'):
         video_res = f'-map p:{attributes["resolution"]}'
     else:
