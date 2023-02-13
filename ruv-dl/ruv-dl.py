@@ -20,9 +20,9 @@ def main():
     # Gets data from the RUV api and defines necessary attributes
     ruv_data = get_ruv_data(args.input)
     attributes = media_attributes(ruv_data)
-    attributes['filepath'] = filepath_setting(attributes)
-    attributes['file_format'] = format_setting()
     attributes['resolution'] = resolution_setting()
+    attributes['file_format'] = format_setting()
+    attributes['filepath'] = filepath_setting(attributes)
     attributes['media_duration'] = media_duration(attributes)
 
     # Optional parameters                      
@@ -60,14 +60,14 @@ def ffmpeg_check() -> None:
 def resolution_setting() -> str:
     valid_resolutions = [1, 2, 3]
     if args.resolution:
-        try:
-            if args.resolution not in valid_resolutions:
+        try: 
+            resolution = int(args.resolution)
+            if resolution not in valid_resolutions:
                 raise KeyError
-        except KeyError:
+        except (ValueError, KeyError):
             print('\n Resolution can only be set to 1, 2 or 3.')
             print(' Refer to --help.')
             graceful_exit()
-        resolution = args.resolution
     else:
         resolution = valid_resolutions[0]
     return resolution
@@ -154,7 +154,7 @@ def filepath_setting(attributes) -> str:
         filepath = f'{new_folder}/'
 
     # Checks whether file already exists
-    if os.path.isfile(filepath):
+    if os.path.isfile(filepath + title + attributes['file_format']):
         answer = input(f'''\n File already exists. 
         \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
         if answer.lower() != 'y':
@@ -267,9 +267,6 @@ def download(attributes):
         bar = fill_symbol * filled_len + empty_symbol * (bar_len - filled_len)
         print("\r", end="")
         print(f' [{bar}] {percents}%', end='', flush=True)
-        
-        if percents == 100:
-            print("\r", end="")
 
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
@@ -322,9 +319,9 @@ def download(attributes):
 
     duration = round_time(final_time)
 
-    # Erases progress bar
-    sys.stdout.write("\033[K")
-    print(f'\n {clr[2]}Download completed in {duration}{clr[5]}\n')
+    # Erases progress bar and prints download summary
+    print("\r\033[K", end="")
+    print(f'\n {clr[2]}Download completed in {duration}{clr[5]}')
 
     graceful_exit() 
 
