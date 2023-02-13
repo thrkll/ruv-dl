@@ -1,13 +1,5 @@
 import argparse
-import os
-# Color config
-clr = {
-    1 : '\033[90m',         # Grey
-    2 : '\033[4;90m',       # Grey underline
-    3 : '\033[1;93;40m',    # Yellow
-    4 : '\x1b[4;93;40m',    # Yellow underline
-    5 : '\033[0m'           # End codec
-}
+from utils import clr
 
 sample_1 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -s -f
     {clr[1]}Downloads media in Very good resolution with .srt file and places into a fancy folder{clr[5]}'''

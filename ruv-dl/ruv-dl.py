@@ -1,6 +1,6 @@
-from arguments import clr, args, hide_cursor, show_cursor
+from arguments import args
+from utils import clr, hide_cursor, round_time, graceful_exit
 import shutil
-import sys
 import requests
 import os
 import subprocess
@@ -36,10 +36,6 @@ def main():
     # Our job here is done
     graceful_exit() 
 
-def graceful_exit() -> None:
-    show_cursor()
-    sys.exit()
-
 def ffmpeg_check() -> None:
     # Adds ffmpeg/ffprobe location to $PATH if specified by user
     if args.ffmpeg_loc:
@@ -54,24 +50,6 @@ def ffmpeg_check() -> None:
             print('\n Could not locate ffmpeg/ffprobe in $PATH.')
             print(' Refer to --help.')
             graceful_exit()
-
-def resolution_setting() -> str:
-    valid_resolutions = [1, 2, 3]
-    if args.resolution:
-        try: 
-            resolution = int(args.resolution)
-            if resolution not in valid_resolutions:
-                raise KeyError
-        except (ValueError, KeyError):
-            print('\n Resolution can only be set to 1, 2 or 3.')
-            print(' Refer to --help.')
-            graceful_exit()
-    else:
-        resolution = valid_resolutions[0]
-    
-    # Stream index starts at 0
-    resolution -= 1
-    return resolution
 
 def get_ruv_data(url) -> dict:
 # Gets json information about content from the RÚV api
@@ -126,7 +104,51 @@ def media_attributes(ruv_data) -> dict:
 
     return attributes
 
-    # return title, content_link, image_links, description, subtitle_url
+def resolution_setting() -> str:
+    valid_resolutions = [1, 2, 3]
+    if args.resolution:
+        try: 
+            resolution = int(args.resolution)
+            if resolution not in valid_resolutions:
+                raise KeyError
+        except (ValueError, KeyError):
+            print('\n Resolution can only be set to 1, 2 or 3.')
+            print(' Refer to --help.')
+            graceful_exit()
+    else:
+        resolution = valid_resolutions[0]
+    
+    # Stream index starts at 0
+    resolution -= 1
+    return resolution
+
+def format_setting() -> str:
+    if args.format:
+        file_format = args.format
+        file_format.replace('.', '')
+
+        # Checks whether output format is supported by ffmpeg
+        cmd = ['ffmpeg', '-formats']
+        process = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                universal_newlines=True)
+        ffmpeg_formats = []
+        for line in process.stdout:
+            a = line.split()
+            if len(a) > 2:
+                f = ['D', 'E', 'DE']
+                for i in f:
+                    if i in a[0]:
+                        ffmpeg_formats.append(a[1])
+        if file_format not in ffmpeg_formats:
+            print('\n File format is not supported by FFmpeg.')
+            graceful_exit()
+        file_format = '.' + file_format
+    else:
+        file_format = '.mp4'
+
+    return file_format
 
 def filepath_setting(attributes) -> str:
     title = attributes['title']
@@ -163,74 +185,6 @@ def filepath_setting(attributes) -> str:
 
     return filepath
 
-def fancy_folder(attributes) -> None:
-    filepath = attributes['filepath']
-    
-    # Saves images to file
-    suffix = ['_thumbnail.jpg', '_portrait.jpg']
-    for url in attributes['image_urls']:
-        try:
-            image = requests.get(url)
-            open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
-        except requests.exceptions.RequestException:
-            print('\nCould not download image from ruv.is.')
-        suffix.pop(0)
-
-    # Saves description text to file
-    file = open(f'{filepath}description.txt', 
-                'x', 
-                encoding='utf8').write(attributes['description'])
-
-def subtitles(attributes) -> None:
-    filepath = attributes['filepath']
-    output = filepath + attributes['title']
-
-    # Returns if no subtitle link available
-    if attributes['subtitle_url'] == None:
-        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
-        graceful_exit()
-    
-    # Downloads subtitle file and converts .vtt file to .srt
-    r = requests.get(attributes['subtitle_url'])
-    open(filepath + '.vtt', 'wb').write(r.content)
-    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{output}.srt"')
-
-    # Removes downloaded .vtt file
-    os.remove(filepath + '.vtt')
-    print('\n Subtitles downloaded')
-
-    # Exits if -so argument is provided
-    if args.subs_only:
-        graceful_exit()
-
-def format_setting() -> str:
-    if args.format:
-        file_format = args.format
-        file_format.replace('.', '')
-
-        # Checks whether output format is supported by ffmpeg
-        cmd = ['ffmpeg', '-formats']
-        process = subprocess.Popen(cmd,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                universal_newlines=True)
-        ffmpeg_formats = []
-        for line in process.stdout:
-            a = line.split()
-            if len(a) > 2:
-                f = ['D', 'E', 'DE']
-                for i in f:
-                    if i in a[0]:
-                        ffmpeg_formats.append(a[1])
-        if file_format not in ffmpeg_formats:
-            print('\n File format is not supported by FFmpeg.')
-            graceful_exit()
-        file_format = '.' + file_format
-    else:
-        file_format = '.mp4'
-
-    return file_format
-
 def media_duration(attributes):
     # Finds media duration with ffprobe
     cmd = ['ffprobe', 
@@ -254,6 +208,46 @@ def media_duration(attributes):
             print(f'\n Unexpected error: {error_message}')
         graceful_exit()
     return media_duration
+
+def subtitles(attributes) -> None:
+    filepath = attributes['filepath']
+    output = filepath + attributes['title']
+
+    # Returns if no subtitle link available
+    if attributes['subtitle_url'] == None:
+        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
+        graceful_exit()
+    
+    # Downloads subtitle file and converts .vtt file to .srt
+    r = requests.get(attributes['subtitle_url'])
+    open(filepath + '.vtt', 'wb').write(r.content)
+    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{output}.srt"')
+
+    # Removes downloaded .vtt file
+    os.remove(filepath + '.vtt')
+    print('\n Subtitles downloaded')
+
+    # Exits if -so argument is provided
+    if args.subs_only:
+        graceful_exit()
+
+def fancy_folder(attributes) -> None:
+    filepath = attributes['filepath']
+    
+    # Saves images to file
+    suffix = ['_thumbnail.jpg', '_portrait.jpg']
+    for url in attributes['image_urls']:
+        try:
+            image = requests.get(url)
+            open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
+        except requests.exceptions.RequestException:
+            print('\nCould not download image from ruv.is.')
+        suffix.pop(0)
+
+    # Saves description text to file
+    file = open(f'{filepath}description.txt', 
+                'x', 
+                encoding='utf8').write(attributes['description'])
 
 def download(attributes):
     media_duration = attributes['media_duration']
@@ -311,20 +305,6 @@ def download(attributes):
 
     # Rounds up time
     final_time = time.time() - start_time
-    def round_time(seconds):
-        seconds = seconds % (24 * 3600)
-        hour = round(seconds // 3600)
-        seconds %= 3600
-        minutes = round(seconds // 60)
-        seconds = round(seconds % 60)
-
-        if hour != 0:
-            return f'{hour} hour, {minutes} min. and {seconds} sec.'
-        elif minutes != 0:
-            return f'{minutes} min. and {seconds} sec.'
-        else:
-            return f'{seconds} sec.'
-
     duration = round_time(final_time)
 
     # Erases progress bar and prints download summary
@@ -333,7 +313,7 @@ def download(attributes):
 
     graceful_exit() 
 
-while True:
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
