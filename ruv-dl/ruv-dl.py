@@ -1,4 +1,4 @@
-from arguments import clr, args
+from arguments import clr, args, hide_cursor, show_cursor
 import shutil
 import sys
 import requests
@@ -9,11 +9,10 @@ import re
 import time
 from pprint import pprint
 
-# Hides terminal cursor
-# print('\033[?25l', end="")
 os.system('color')
-
 def main():
+    hide_cursor()
+
     # Checks whether user has ffmpeg/ffprobe in $PATH
     ffmpeg_check()
 
@@ -38,8 +37,7 @@ def main():
     graceful_exit() 
 
 def graceful_exit() -> None:
-    # Makes terminal cursor visible again
-    print('\033[?25h', end="")
+    show_cursor()
     sys.exit()
 
 def ffmpeg_check() -> None:
@@ -70,6 +68,9 @@ def resolution_setting() -> str:
             graceful_exit()
     else:
         resolution = valid_resolutions[0]
+    
+    # Stream index starts at 0
+    resolution -= 1
     return resolution
 
 def get_ruv_data(url) -> dict:
@@ -271,20 +272,23 @@ def download(attributes):
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
     output_link = attributes['filepath'] + output_title
-    
-    # Map argument for video resolution settings
-    if attributes['content_url'].endswith('.m3u8'):
-        video_res = f'-map p:{attributes["resolution"]}'
-    else:
-        video_res = ''
-        
-    cmd = f'ffmpeg -y -loglevel error -stats -i {attributes["content_url"]} {video_res} -c copy "{output_link}"'
+    cmd = ['ffmpeg', 
+           '-y', 
+           '-loglevel', 
+           'error', 
+           '-stats', 
+           '-i', 
+           f'{attributes["content_url"]}',
+           '-map',
+           f'p:{attributes["resolution"]}', 
+           '-c', 
+           'copy', 
+           f'{output_link}']
 
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
+                               universal_newlines=True)
     print(f'\n Downloading {clr[3]}{output_title}{clr[5]}...')
 
     # Measures duration
@@ -292,13 +296,17 @@ def download(attributes):
 
     # Download starts here
     for line in process.stdout:
-        if 'Unsupported codec' in line:
-            print(f'\n Codec is unsupported, got: {args.format}')
+        try:
+            if 'Unsupported codec' in line:
+                print(f'\n Codec is unsupported, got: {args.format}')
+                graceful_exit()
+            h,m,s = line.split('time=')[1][:8].split(':')
+            media_done = int(datetime.timedelta(hours=int(h),
+                                                minutes=int(m),
+                                                seconds=int(s)).total_seconds())
+        except Exception as e:
+            print(f' \n An unknown error occurred: {line}\n {e}')
             graceful_exit()
-        h,m,s = line.split('time=')[1][:8].split(':')
-        media_done = int(datetime.timedelta(hours=int(h),
-                                            minutes=int(m),
-                                            seconds=int(s)).total_seconds())
         progress(media_done, media_duration)
 
     # Rounds up time
