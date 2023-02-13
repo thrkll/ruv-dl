@@ -253,15 +253,15 @@ def download(attributes):
     media_duration = attributes['media_duration']
 
     # Progress bar
-    def progress(count, total):
+    def progress(seconds_done, eta):
         bar_len = 50
-        filled_len = int(round(bar_len * count / float(total)))
-        percents = round(100.0 * count / float(total), 1)
+        filled_len = int(round(bar_len * seconds_done / float(media_duration)))
+        percents = round(100.0 * seconds_done / float(media_duration), 1)
         fill_symbol = f'{clr[1]}#{clr[5]}'
         empty_symbol = f'{clr[1]}-{clr[5]}'
         bar = fill_symbol * filled_len + empty_symbol * (bar_len - filled_len)
         print("\r", end="")
-        print(f' [{bar}] {percents}%', end='', flush=True)
+        print(f' [{bar}] {percents}% | ETA: {eta}', end='', flush=True)
 
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
@@ -273,11 +273,13 @@ def download(attributes):
            '-stats', 
            '-i', 
            f'{attributes["content_url"]}',
-           '-map',
-           f'p:{attributes["resolution"]}', 
            '-c', 
            'copy', 
            f'{output_link}']
+    
+    # Appends setting for correct stream if applicable
+    if attributes['content_url'].endswith('.m3u8'):
+        cmd.extend(['-map', f'p:{attributes["resolution"]}'])
 
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
@@ -291,17 +293,16 @@ def download(attributes):
     # Download starts here
     for line in process.stdout:
         try:
-            if 'Unsupported codec' in line:
-                print(f'\n Codec is unsupported, got: {args.format}')
-                graceful_exit()
             h,m,s = line.split('time=')[1][:8].split(':')
-            media_done = int(datetime.timedelta(hours=int(h),
+            seconds_done = int(datetime.timedelta(hours=int(h),
                                                 minutes=int(m),
                                                 seconds=int(s)).total_seconds())
+            speed = int(line.split('speed= ')[1].replace('x',''))
+            eta = round_time((media_duration - seconds_done) / speed)
         except Exception as e:
             print(f' \n An unknown error occurred: {line}\n {e}')
             graceful_exit()
-        progress(media_done, media_duration)
+        progress(seconds_done, eta)
 
     # Rounds up time
     final_time = time.time() - start_time
