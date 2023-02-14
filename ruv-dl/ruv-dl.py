@@ -1,5 +1,5 @@
 from arguments import args
-from utils import clr, hide_cursor, round_time, graceful_exit
+from utils import clr, show_cursor, round_time, graceful_exit
 import shutil
 import requests
 import os
@@ -7,11 +7,12 @@ import subprocess
 import datetime
 import re
 import time
-from pprint import pprint
 
-os.system('color')
+if os.name == 'nt':
+    os.system('color')
+
 def main():
-    hide_cursor()
+    show_cursor(False)
 
     # Checks whether user has ffmpeg/ffprobe in $PATH
     ffmpeg_check()
@@ -241,7 +242,8 @@ def fancy_folder(attributes) -> None:
             image = requests.get(url)
             open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
         except requests.exceptions.RequestException:
-            print('\nCould not download image from ruv.is.')
+            if url is not None:
+                print('\n Could not download image from ruv.is.')
         suffix.pop(0)
 
     # Saves description text to file
@@ -260,8 +262,7 @@ def download(attributes):
         fill_symbol = f'{clr[1]}#{clr[5]}'
         empty_symbol = f'{clr[1]}-{clr[5]}'
         bar = fill_symbol * filled_len + empty_symbol * (bar_len - filled_len)
-        print("\r", end="")
-        print(f' [{bar}] {percents}% | ETA: {eta}', end='', flush=True)
+        print(f'\x1b[2K [{bar}] {percents}% | ETA: {eta}', end='\r')
 
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
@@ -297,20 +298,23 @@ def download(attributes):
             seconds_done = int(datetime.timedelta(hours=int(h),
                                                 minutes=int(m),
                                                 seconds=int(s)).total_seconds())
-            speed = int(line.split('speed= ')[1].replace('x',''))
-            eta = round_time((media_duration - seconds_done) / speed)
+            try:
+                speed = float(line.split('speed=')[1].replace('x','').strip())
+                eta = round_time((media_duration - seconds_done) / speed)
+            except (IndexError, ValueError):
+                # It can take a couple of lines for ffmpeg to calculate speed
+                eta = 'Unknown'
         except Exception as e:
-            print(f' \n An unknown error occurred: {line}\n {e}')
+            print(f'\n An unknown error occurred: {line}\n {e}')
             graceful_exit()
         progress(seconds_done, eta)
 
     # Rounds up time
-    final_time = time.time() - start_time
-    duration = round_time(final_time)
+    duration = round_time(time.time() - start_time)
 
     # Erases progress bar and prints download summary
-    print("\r\033[K", end="")
-    print(f'\n {clr[2]}Download completed in {duration}{clr[5]}')
+    print('\r\033[K')
+    print(f' {clr[2]}Download completed in {duration}{clr[5]}')
 
     graceful_exit() 
 
