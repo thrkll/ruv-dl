@@ -28,13 +28,13 @@ group = parser.add_argument_group(f' {clr[4]}Optional arguments{clr[5]}')
 group.add_argument('-r', '--resolution',
                     type = str,
                     metavar='\b',
-                    help = f'''{clr[1]}1 3600kbps\t1920x1080\rVery good (default)
+                    help = f'''\t{clr[1]}1 3600kbps\t1920x1080\tVery good (default)
 2 2400kbps\t1280x720\tPretty good
-3 1200kbps\t852x480\tOkay{clr[5]}''')
+3 1200kbps\t852x480\t\tOkay{clr[5]}''')
 
 group.add_argument('-s', '--subtitles',
                     action='store_true',
-                    help = f'{clr[1]}Downloads .srt subtitle file from RUV if available.{clr[5]}')
+                    help = f'{clr[1]}Downloads .srt subtitle file if available.{clr[5]}')
 
 group.add_argument('-so', '--subs_only',
                     action='store_true',
@@ -43,12 +43,12 @@ group.add_argument('-so', '--subs_only',
 group.add_argument('-t', '--format',
                     type = str,
                     metavar = '\b',
-                    help = f'\t{clr[1]}Any allowed codec by ffmpeg: mp4 (default), mkv, avi, mp3 etc.{clr[5]}')
+                    help = f'\t{clr[1]}Any codec allowed by ffmpeg: mp4 (default), mkv, avi, mp3 etc.{clr[5]}')
 
 group.add_argument('-o','--output',
                     type = str,
                     metavar = '\b',
-                    help = f'\t{clr[1]}Specifies output name. Default name is as RUV defines it.{clr[5]}')
+                    help = f'\t{clr[1]}Specifies output name. Default name is as ruv.is defines it.{clr[5]}')
 
 group.add_argument('-f', '--fancy',
                     action = 'store_true',
@@ -57,7 +57,7 @@ group.add_argument('-f', '--fancy',
 group.add_argument('-l', '--ffmpeg_loc',
                     type = str,
                     metavar = '\b',
-                    help = f'{clr[1]}Specify a path for ffmpeg if it is not in $PATH.{clr[5]}')
+                    help = f'\t{clr[1]}Specify a path for ffmpeg if it is not in $PATH.{clr[5]}')
 
 group.add_argument("-h", "--help",
                    action = "help",
