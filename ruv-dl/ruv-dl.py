@@ -18,8 +18,7 @@ def main():
     ffmpeg_check()
 
     # Gets data from the RUV api and defines necessary attributes
-    ruv_data = get_ruv_data(args.input)
-    attributes = media_attributes(ruv_data)
+    attributes = ruv_attributes(args.input)
     attributes['resolution'] = resolution_setting()
     attributes['file_format'] = format_setting()
     attributes['filepath'] = filepath_setting(attributes)
@@ -52,30 +51,25 @@ def ffmpeg_check() -> None:
             print(' Refer to --help.')
             graceful_exit()
 
-def get_ruv_data(url) -> dict:
-# Gets json information about content from the RÚV api
-        # 27.12.19  Media slugs can have the following forms
-        #           .../spila/content-name/XXXXX?ep=ZZZZZZ
-        #           .../spila/content-name/XXXXX/ZZZZZZ
-        #           .../spila/content-name/XXXXX
+def ruv_attributes(url) -> dict:
+    attributes = {}
 
+    # 27.12.19  Media slugs can have these structures
+    #           .../spila/content-name/XXXXX?ep=ZZZZZZ
+    #           .../spila/content-name/XXXXX/ZZZZZZ
+    #           .../spila/content-name/XXXXX
     content_ids = url.replace('?ep=', '/').split('/')[-2:]
     api_url = f'https://api.ruv.is/api/programs/program/{"/".join(content_ids)}'
     try:
         data = requests.get(api_url, timeout=5)
         data.raise_for_status()
     except requests.exceptions.HTTPError:
-        print('\nProgram ID not found. Check if URL is valid.')
+        print('\n Program ID not found. Check if URL is valid.')
         graceful_exit()
     except requests.exceptions.RequestException:
-        print('\nCould not connect to ruv.is.')
+        print('\n Could not connect to ruv.is.')
         graceful_exit()
-    data = data.json()
-    return data
-
-def media_attributes(ruv_data) -> dict:
-# Defines media attributes used by other functions
-    attributes = {}
+    ruv_data = data.json()
 
     # Title - As RUV defines it...
     title = ruv_data['title']
@@ -143,7 +137,7 @@ def format_setting() -> str:
                     if i in a[0]:
                         ffmpeg_formats.append(a[1])
         if file_format not in ffmpeg_formats:
-            print('\n File format is not supported by FFmpeg.')
+            print('\n File format is not supported by ffmpeg.')
             graceful_exit()
         file_format = '.' + file_format
     else:
@@ -301,11 +295,11 @@ def download(attributes):
             try:
                 speed = float(line.split('speed=')[1].replace('x','').strip())
                 eta = round_time((media_duration - seconds_done) / speed)
-            except (IndexError, ValueError):
+            except (IndexError, ValueError, ZeroDivisionError):
                 # It can take a couple of lines for ffmpeg to calculate speed
                 eta = 'Unknown'
         except Exception as e:
-            print(f'\n An unknown error occurred: {line}\n {e}')
+            print(f'\n An unknown error occurred: \n {line}\n {e}')
             graceful_exit()
         progress(seconds_done, eta)
 
