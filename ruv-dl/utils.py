@@ -19,26 +19,21 @@ if os.name == 'nt':
         _fields_ = [("size", ctypes.c_int),
                     ("visible", ctypes.c_byte)]
 
-def hide_cursor() -> None:
+def show_cursor(option) -> None:
     if os.name == 'nt':
         ci = _CursorInfo()
         handle = ctypes.windll.kernel32.GetStdHandle(-11)
         ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
-        ci.visible = False
+        if option is True: 
+            ci.visible = True
+        elif option is False:
+            ci.visible = False
         ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
     elif os.name == 'posix':
-        sys.stdout.write("\033[?25l")
-        sys.stdout.flush()
-
-def show_cursor() -> None:
-    if os.name == 'nt':
-        ci = _CursorInfo()
-        handle = ctypes.windll.kernel32.GetStdHandle(-11)
-        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
-        ci.visible = True
-        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
-    elif os.name == 'posix':
-        sys.stdout.write("\033[?25h")
+        if option is True: 
+            sys.stdout.write("\033[?25h")
+        elif option is False:
+            sys.stdout.write("\033[?25l")
         sys.stdout.flush()
 
 # Rounds time 
@@ -58,5 +53,5 @@ def round_time(seconds) -> str:
 
 # Exits gracefully
 def graceful_exit() -> None:
-    show_cursor()
+    show_cursor(True)
     sys.exit()
