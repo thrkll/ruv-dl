@@ -180,7 +180,7 @@ def filepath_setting(attributes) -> str:
 
     return filepath
 
-def media_duration(attributes):
+def media_duration(attributes) -> float:
     # Finds media duration with ffprobe
     cmd = ['ffprobe', 
         '-v',
@@ -245,7 +245,7 @@ def fancy_folder(attributes) -> None:
                 'x', 
                 encoding='utf8').write(attributes['description'])
 
-def download(attributes):
+def download(attributes) -> None:
     media_duration = attributes['media_duration']
 
     # Progress bar
