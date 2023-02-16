@@ -38,7 +38,7 @@
 
 #### Basic download
 
-Find the link to whatever it is you want to waste your time on. Succeeding the input argument `-i` , paste in the URL. By default, the media file will download under the name RÚV defines it in best given quality.
+Find the link to whatever it is you want to waste your time on and paste the URL after the input argument `-i`. By default, the media file will download under the name RÚV defines it in best available resolution.
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1`
 
@@ -66,6 +66,12 @@ By default, all files will download as .mp4. But for the true snob, `ruv-dl` can
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -t mkv`
 
+#### Different FFmpeg location 
+
+In the optimal setup, FFMpeg will be available in the `$PATH`. Alternatively you can specify the location of the FFmpeg installation folder using the `-l` argument. 
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -l C:/ffmpeg/`
+
 #### Help argument
 
 When you eventually forget everything you've read here, you can use the `--help` argument.
@@ -74,7 +80,7 @@ When you eventually forget everything you've read here, you can use the `--help`
 
 ## ⚒️ Project assistance
 
-Please raise an issue if you run into any trouble or have a feature request. Feel free to contribute and make pull requests. Mark this project with a star ⭐ if you like it and let your friends hear about it.
+Please raise an issue if you have a feature request or run into trouble (the ruv.is media service keeps changing). Feel free to contribute and make pull requests. Mark the project with a star ⭐ if you like it.
 
 ## 🚚 Versions
 
