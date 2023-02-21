@@ -1,6 +1,6 @@
-from arguments import *
+from arguments import args
+from utils import clr, show_cursor, round_time, graceful_exit
 import shutil
-import sys
 import requests
 import os
 import subprocess
@@ -9,288 +9,312 @@ import re
 import time
 
 if os.name == 'nt':
-    import msvcrt
-    import ctypes
-
     os.system('color')
-    class _CursorInfo(ctypes.Structure):
-        _fields_ = [("size", ctypes.c_int),
-                    ("visible", ctypes.c_byte)]
 
 def main():
-    hide_cursor()
+    show_cursor(False)
+
+    # Checks whether user has ffmpeg/ffprobe in $PATH
     ffmpeg_check()
-    res = resolution(args.resolution) if args.resolution else '3600kbps'
-    content_ids = url_data(args.input)
-    json_data = api_getter(content_ids)
-    content_info = media_info(json_data)
-    title = re.sub('[^\w_.)( -]', '', content_info[0])
-    filepath = fancy(content_info[2], content_info[3], title)
-    if args.subs_only:
-        subtitles(content_info[4], filepath)
-        sys.exit()
-    elif args.subtitles:
-        subtitles(content_info[4], filepath)
-    filepath += output(args.format) if args.format else '.mp4'
-    exists_checker(filepath)
-    download(content_info, res, filepath)
 
-def hide_cursor():
-    if os.name == 'nt':
-        ci = _CursorInfo()
-        handle = ctypes.windll.kernel32.GetStdHandle(-11)
-        ctypes.windll.kernel32.GetConsoleCursorInfo(handle, ctypes.byref(ci))
-        ci.visible = False
-        ctypes.windll.kernel32.SetConsoleCursorInfo(handle, ctypes.byref(ci))
-    elif os.name == 'posix':
-        sys.stdout.write("\033[?25l")
-        sys.stdout.flush()
+    # Gets data from the RUV api and defines necessary attributes
+    attributes = ruv_attributes(args.input)
+    attributes['resolution'] = resolution_setting()
+    attributes['file_format'] = format_setting()
+    attributes['filepath'] = filepath_setting(attributes)
+    attributes['media_duration'] = media_duration(attributes)
 
-def exists_checker(filepath):
-    # Checks whether file already exists
-    if os.path.isfile(filepath) == True:
-        answer = input(f'\n File already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
-        if answer.lower() != 'y':
-            sys.exit()
+    # Optional parameters                      
+    if args.subtitles or args.subs_only:
+        subtitles(attributes)
+    if args.fancy:
+        fancy_folder(attributes)
 
-def ffmpeg_check():
-    # Checks whether ffmpeg is in PATH
-    if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
-        print('\nCould not locate ffmpeg/ffprobe.')
-        sys.exit()
+    # Downloads media content
+    download(attributes)
 
-def resolution(arg):
-    if arg == '1': res = "500kbps"
-    elif arg == '2': res = "800kbps"
-    elif arg == '3': res = "1200kbps"
-    elif arg == '4': res = "2400kbps"
-    elif arg == '5': res = "3600kbps"
-    else:
-        print(' --resolution can be set to 1, 2, 3, 4 or 5. \n See --help.')
-        sys.exit()
-    return res
+    # Our job here is done
+    graceful_exit() 
 
-def url_data(arg):
-    # URL validation
-        # 27.12.19  Links can have the form
-        #           .../spila/content-name/XXXXX?ep=ZZZZZZ
-        #           .../spila/content-name/XXXXX/ZZZZZZ
-        #           .../spila/content-name/XXXXX
+def ffmpeg_check() -> None:
+    # Adds ffmpeg/ffprobe location to $PATH if specified by user
+    if args.ffmpeg_loc:
+        if os.path.exists(args.ffmpeg_loc):
+            os.environ['PATH'] += os.pathsep + args.ffmpeg_loc
+
+    # Checks whether ffmpeg/ffprobe is in $PATH
+    try: 
+        if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
+            raise TypeError
+    except TypeError:
+            print('\n Could not locate ffmpeg/ffprobe in $PATH.')
+            print(' Refer to --help.')
+            graceful_exit()
+
+def ruv_attributes(url) -> dict:
+    attributes = {}
+
+    # 27.12.19  Media slugs can have these structures
+    #           .../spila/content-name/XXXXX?ep=ZZZZZZ
+    #           .../spila/content-name/XXXXX/ZZZZZZ
+    #           .../spila/content-name/XXXXX
+    content_ids = url.replace('?ep=', '/').split('/')[-2:]
+    api_url = f'https://api.ruv.is/api/programs/program/{"/".join(content_ids)}'
     try:
-        content_url = arg.split('ruv.is')[1]
-        if '?ep=' in content_url:
-            content_url = content_url.replace('?ep=', '/')
-        content_ids = content_url.split('/')[-2:]
-
-    except:
-        print('\n Input URL is not valid.')
-        sys.exit()
-
-    return content_ids
-
-def api_getter(content_ids):
-    # Retrieves media data from RUV api
-    ids = "/".join(content_ids)
-    api_url = f'https://api.ruv.is/api/programs/program/{ids}'
-    try:
-        data = requests.get(api_url, timeout=5).json()
-    except:
-        print('\nCould not connect to RUV.is.')
-        sys.exit()
-
-    if not 'title' in data:
+        data = requests.get(api_url, timeout=5)
+        data.raise_for_status()
+    except requests.exceptions.HTTPError:
         print('\n Program ID not found. Check if URL is valid.')
-        sys.exit()
+        graceful_exit()
+    except requests.exceptions.RequestException:
+        print('\n Could not connect to ruv.is.')
+        graceful_exit()
+    ruv_data = data.json()
 
-    return data
+    # Title - As RUV defines it...
+    title = ruv_data['title']
+    if ruv_data['multiple_episodes'] == True:
+        secondary_title = ruv_data['episodes'][0]['title']
+        title = f'{title} - {secondary_title}'
+    
+    # ...unless defined by user with -o flag...
+    if args.output:
+        title = args.output
 
-def media_info(data):
-    try:
-        # Defines title as RUV defines it...
-        title = data['title']
-        if data['multiple_episodes'] == True:
-            secondary_title = data['episodes'][0]['title']
-            title = f'{title} - {secondary_title}'
+    # ... and sanitizes filename
+    title = re.sub('[^\w_.)( -]', '', title)
+    attributes['title'] = title
 
-        # ...unless user defined by -o flag
-        if args.output:
-            title = args.output
+    # Media content link
+    attributes['content_url'] = ruv_data['episodes'][0]['file']
 
-        content_link = ':'.join(data['episodes'][0]['file'].split(':')[:2])
-        image_links = [data['image'], data['portrait_image']]
-        description = data['description']
+    # Subtitle link
+    attributes['subtitle_url'] = ruv_data['episodes'][0]['subtitles_url']
 
-        # Concatenates, in case description is stored in multiple lines
-        description = '\n'.join(description)
-        subtitle_url = data['episodes'][0]['subtitles_url']
-    except:
-        print('\n Content not available.')
-        sys.exit()
+    # Image links
+    attributes['image_urls'] = [ruv_data['image'], ruv_data['portrait_image']]
 
-    return title, content_link, image_links, description, subtitle_url
+    # Description
+    attributes['description'] = '\n'.join(ruv_data['description'])
 
-def fancy(image_links, description, filename):
-    title = filename.split('.')[0]
+    return attributes
+
+def resolution_setting() -> str:
+    valid_resolutions = [1, 2, 3]
+    if args.resolution:
+        try: 
+            resolution = int(args.resolution)
+            if resolution not in valid_resolutions:
+                raise KeyError
+        except (ValueError, KeyError):
+            print('\n Resolution can only be set to 1, 2 or 3.')
+            print(' Refer to --help.')
+            graceful_exit()
+    else:
+        resolution = valid_resolutions[0]
+    
+    # Stream index starts at 0
+    resolution -= 1
+    return resolution
+
+def format_setting() -> str:
+    if args.format:
+        file_format = args.format
+        file_format.replace('.', '')
+
+        # Checks whether output format is supported by ffmpeg
+        cmd = ['ffmpeg', '-formats']
+        process = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                universal_newlines=True)
+        ffmpeg_formats = []
+        for line in process.stdout:
+            a = line.split()
+            if len(a) > 2:
+                f = ['D', 'E', 'DE']
+                for i in f:
+                    if i in a[0]:
+                        ffmpeg_formats.append(a[1])
+        if file_format not in ffmpeg_formats:
+            print('\n File format is not supported by ffmpeg.')
+            graceful_exit()
+        file_format = '.' + file_format
+    else:
+        file_format = '.mp4'
+
+    return file_format
+
+def filepath_setting(attributes) -> str:
+    title = attributes['title']
+    filepath = './'
     if args.fancy:
         # Defines a new folder under content title
-        new_folder = './' + filename
+        new_folder = './' + title
 
         # Checks whether folder already exists
         if os.path.exists(new_folder):
-            answer = input(f'\n Fancy folder already exists. Do you want to overwrite? [{comfy}y/n{endc}]: ')
+            answer = input(f'''\n Fancy folder already exists. 
+            \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
             if answer.lower() != 'y':
-                sys.exit()
+                graceful_exit()
+
+            # Removes existing folder
             try:
                 shutil.rmtree(new_folder)
             except PermissionError:
-                print('\n Could not delete pre-existing folder. Please close all files.')
-                sys.exit()
+                print('''\n Could not delete pre-existing folder. 
+                \r Please close all open files and folders.''')
+                graceful_exit()
 
         # Makes new folder
         os.makedirs(new_folder)
+        filepath = f'{new_folder}/'
 
-        # Downloads images and places in folder
-        def image_download(suffix, index):
-            try:
-                r = requests.get(image_links[index])
-                open(new_folder + '/' + filename + suffix, 'wb').write(r.content)
-            except:
-                pass
-        image_download('_thumbnail.jpg', 0)
-        image_download('_portrait.jpg', 1)
-
-        # Saves description to file
-        text_file = new_folder + '/description.txt'
-        file = open(text_file, 'x').write(description)
-
-        filepath = filename + '/' + filename
-
-    else:
-        filepath = filename
+    # Checks whether file already exists
+    if os.path.isfile(filepath + title + attributes['file_format']):
+        answer = input(f'''\n File already exists. 
+        \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
+        if answer.lower() != 'y':
+            graceful_exit()
 
     return filepath
 
-def subtitles(subtitle_url, filepath):
-    # Returns if no subtitle link available
-    if subtitle_url == None:
-        print(f'\n No subtitles available {comfy}:({endc}')
-        return
+def media_duration(attributes) -> float:
+    # Finds media duration with ffprobe
+    cmd = ['ffprobe', 
+        '-v',
+        'error',
+        '-show_entries',
+        'format=duration',
+        '-of',
+        'default=noprint_wrappers=1:nokey=1',
+        f'{attributes["content_url"]}']
+    process = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True)
+    line = process.stdout.readlines()[0]
+    try:    
+        media_duration = float(line)
+    except ValueError as error_message:
+        if '403 Forbidden' in line:
+            print('\n Not allowed to download. Check if content is geoblocked.')
+        else:
+            print(f'\n Unexpected error: {error_message}')
+        graceful_exit()
+    return media_duration
 
+def subtitles(attributes) -> None:
+    filepath = attributes['filepath']
+    output = filepath + attributes['title']
+
+    # Returns if no subtitle link available
+    if attributes['subtitle_url'] == None:
+        print(f'\n No subtitles available {clr[3]}:({clr[5]}')
+        graceful_exit()
+    
     # Downloads subtitle file and converts .vtt file to .srt
-    r = requests.get(subtitle_url)
+    r = requests.get(attributes['subtitle_url'])
     open(filepath + '.vtt', 'wb').write(r.content)
-    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{filepath}.srt"')
+    os.system(f'ffmpeg -y -loglevel error -i "{filepath}.vtt" "{output}.srt"')
 
     # Removes downloaded .vtt file
     os.remove(filepath + '.vtt')
     print('\n Subtitles downloaded')
 
-def output(format):
-    # Checks whether output format is supported by ffmpeg
-    format.replace('.', '')
-    cmd = 'ffmpeg -formats'
-    process = subprocess.Popen(cmd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
-    ffmpeg_formats = []
-    for line in process.stdout:
-        a = line.split()
-        if len(a) > 2:
-            f = ['D', 'E', 'DE']
-            for i in f:
-                if i in a[0]:
-                    ffmpeg_formats.append(a[1])
+    # Exits if -so argument is provided
+    if args.subs_only:
+        graceful_exit()
 
-    if format not in ffmpeg_formats:
-        print('\n Unsupported file format.')
-        sys.exit()
+def fancy_folder(attributes) -> None:
+    filepath = attributes['filepath']
+    
+    # Saves images to file
+    suffix = ['_thumbnail.jpg', '_portrait.jpg']
+    for url in attributes['image_urls']:
+        try:
+            image = requests.get(url)
+            open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
+        except requests.exceptions.RequestException:
+            if url is not None:
+                print('\n Could not download image from ruv.is.')
+        suffix.pop(0)
 
-    format = '.' + format
-    return format
+    # Saves description text to file
+    file = open(f'{filepath}description.txt', 
+                'x', 
+                encoding='utf8').write(attributes['description'])
 
-def download(content_info, res, filepath):
-    # Sets resolution
-    download_link = content_info[1].replace('2400kbps', res)
-
-    # Finds media duration with ffprobe
-    cmd = f'ffprobe "{download_link}"'
-    process = subprocess.Popen(cmd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
-    for line in process.stdout:
-        if 'Duration:' in line:
-            h,m,s = line.split('Duration: ')[1][:8].split(':')
-            media_duration = int(datetime.timedelta(hours=int(h),
-                                                    minutes=int(m),
-                                                    seconds=int(s)).total_seconds())
-            break
+def download(attributes) -> None:
+    media_duration = attributes['media_duration']
 
     # Progress bar
-    def progress(count, total, status=''):
+    def progress(seconds_done, eta):
         bar_len = 50
-        filled_len = int(round(bar_len * count / float(total)))
-        percents = round(100.0 * count / float(total), 1)
-        bar = f'{grey}#{endc}' * filled_len + f'{grey}-{endc}' * (bar_len - filled_len)
-        print("\r", end="")
-        print(' [{}] {}{}'.format(bar, percents, '%'), end='', flush=True)
-        
-        if percents == 100:
-            print("\r", end="")
+        filled_len = int(round(bar_len * seconds_done / float(media_duration)))
+        percents = round(100.0 * seconds_done / float(media_duration), 1)
+        fill_symbol = f'{clr[1]}#{clr[5]}'
+        empty_symbol = f'{clr[1]}-{clr[5]}'
+        bar = fill_symbol * filled_len + empty_symbol * (bar_len - filled_len)
+        print(f'\x1b[2K [{bar}] {percents}% | ETA: {eta}', end='\r')
 
     # Defines process
-    cmd = f'ffmpeg -y -loglevel error -stats -i "{download_link}" -c copy "{filepath}"'
+    output_title = attributes['title'] + attributes['file_format']
+    output_link = attributes['filepath'] + output_title
+    cmd = ['ffmpeg', 
+           '-y', 
+           '-loglevel', 
+           'error', 
+           '-stats', 
+           '-i', 
+           f'{attributes["content_url"]}',
+           '-c', 
+           'copy', 
+           f'{output_link}']
+    
+    # Appends setting for correct stream if applicable
+    if attributes['content_url'].endswith('.m3u8'):
+        cmd.extend(['-map', f'p:{attributes["resolution"]}'])
+
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
-                               universal_newlines=True,
-                               shell=True)
-    filepath = filepath.split('/')[-1]
-    print(f'\n Downloading {comfy}{filepath}{endc}...')
+                               universal_newlines=True)
+    print(f'\n Downloading {clr[3]}{output_title}{clr[5]}...')
 
     # Measures duration
     start_time = time.time()
 
     # Download starts here
     for line in process.stdout:
-        if 'Unsupported codec' in line:
-            print(f'\n Codec is unsupported, got: {args.format}')
-            sys.exit()
-        h,m,s = line.split('time=')[1][:8].split(':')
-        media_done = int(datetime.timedelta(hours=int(h),
-                                            minutes=int(m),
-                                            seconds=int(s)).total_seconds())
-        progress(media_done, media_duration)
+        try:
+            h,m,s = line.split('time=')[1][:8].split(':')
+            seconds_done = int(datetime.timedelta(hours=int(h),
+                                                minutes=int(m),
+                                                seconds=int(s)).total_seconds())
+            try:
+                speed = float(line.split('speed=')[1].replace('x','').strip())
+                eta = round_time((media_duration - seconds_done) / speed)
+            except (IndexError, ValueError, ZeroDivisionError):
+                # It can take a couple of lines for ffmpeg to calculate speed
+                eta = 'Unknown'
+        except Exception as e:
+            print(f'\n An unknown error occurred: \n {line}\n {e}')
+            graceful_exit()
+        progress(seconds_done, eta)
 
     # Rounds up time
-    final_time = time.time() - start_time
-    def round_time(seconds):
-        seconds = seconds % (24 * 3600)
-        hour = round(seconds // 3600)
-        seconds %= 3600
-        minutes = round(seconds // 60)
-        seconds = round(seconds % 60)
+    duration = round_time(time.time() - start_time)
 
-        if hour != 0:
-            return f'{hour} hour, {minutes} min. and {seconds} sec.'
-        elif minutes != 0:
-            return f'{minutes} min. and {seconds} sec.'
-        else:
-            return f'{seconds} sec.'
+    # Erases progress bar and prints download summary
+    print('\r\033[K')
+    print(f' {clr[2]}Download completed in {duration}{clr[5]}')
 
-    duration = round_time(final_time)
+    graceful_exit() 
 
-    sys.stdout.write("\033[K")
-    print(f'\n {grey_underl}Download completed in {duration}{endc}\n\n')
-
-    sys.exit()  
-
-while True:
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         print('\n\n Exiting...')
-        sys.exit()
+        graceful_exit()
