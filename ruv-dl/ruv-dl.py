@@ -206,8 +206,6 @@ def media_duration(attributes) -> float:
         else:
             print(f'\n Unexpected ffprobe error: {err_lines}')
         graceful_exit()
-    else:
-        return float(out_lines[0].strip())
     line = out_lines()[0]
     return media_duration
 
