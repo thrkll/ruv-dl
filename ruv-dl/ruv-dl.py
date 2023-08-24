@@ -185,7 +185,7 @@ def filepath_setting(attributes) -> str:
     return filepath
 
 def media_duration(attributes) -> float:
-    # Finds media duration with ffprobe
+    # Finds media duration with ffprobe and checks for geoblock
     cmd = ['ffprobe', 
         '-v',
         'error',
@@ -206,7 +206,7 @@ def media_duration(attributes) -> float:
         else:
             print(f'\n Unexpected ffprobe error: {err_lines}')
         graceful_exit()
-    line = out_lines()[0]
+    media_duration = float(out_lines[0])
     return media_duration
 
 def subtitles(attributes) -> None:
