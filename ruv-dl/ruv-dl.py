@@ -63,11 +63,15 @@ def ruv_attributes(url) -> dict:
     try:
         data = requests.get(api_url, timeout=5)
         data.raise_for_status()
+        data.json()['episodes'][0]
     except requests.exceptions.HTTPError:
         print('\n Program ID not found. Check if URL is valid.')
         graceful_exit()
     except requests.exceptions.RequestException:
         print('\n Could not connect to ruv.is.')
+        graceful_exit()
+    except IndexError:
+        print('\n Content is not available.')
         graceful_exit()
     ruv_data = data.json()
 
@@ -181,7 +185,7 @@ def filepath_setting(attributes) -> str:
     return filepath
 
 def media_duration(attributes) -> float:
-    # Finds media duration with ffprobe
+    # Finds media duration with ffprobe and checks for geoblock
     cmd = ['ffprobe', 
         '-v',
         'error',
@@ -192,16 +196,17 @@ def media_duration(attributes) -> float:
         f'{attributes["content_url"]}']
     process = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
                                 universal_newlines=True)
-    line = process.stdout.readlines()[0]
-    try:    
-        media_duration = float(line)
-    except ValueError as error_message:
-        if '403 Forbidden' in line:
+    out_lines = process.stdout.readlines()
+    err_lines = process.stderr.readlines()
+    if not out_lines:
+        if any('403 Forbidden' in line for line in err_lines):
             print('\n Not allowed to download. Check if content is geoblocked.')
         else:
-            print(f'\n Unexpected error: {error_message}')
+            print(f'\n Unexpected ffprobe error: {err_lines}')
         graceful_exit()
+    media_duration = float(out_lines[0])
     return media_duration
 
 def subtitles(attributes) -> None:
