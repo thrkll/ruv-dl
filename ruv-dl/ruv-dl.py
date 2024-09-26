@@ -86,7 +86,7 @@ def ruv_attributes(url) -> dict:
         title = args.output
 
     # ... and sanitizes filename
-    title = re.sub('[^\w_.)( -]', '', title)
+    title = re.sub(r'[^\w_.)( -]', '', title)
     attributes['title'] = title
 
     # Media content link
