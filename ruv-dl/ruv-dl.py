@@ -266,20 +266,37 @@ def download(attributes) -> None:
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
     output_link = attributes['filepath'] + output_title
-    cmd = ['ffmpeg', 
-           '-y', 
-           '-loglevel', 
-           'error', 
-           '-stats', 
-           '-i', 
-           f'{attributes["content_url"]}',
-           '-c', 
-           'copy', 
-           f'{output_link}']
-    
-    # Appends setting for correct stream if applicable
-    if attributes['content_url'].endswith('.m3u8'):
-        cmd.extend(['-map', f'p:{attributes["resolution"]}'])
+    is_hls = attributes['content_url'].endswith('.m3u8')
+
+    if is_hls:
+        # HLS content: map the correct video and audio streams based on resolution
+        # Calculate stream indices based on desired resolution
+        video_stream_index = 2 * (attributes['resolution'] + 1)
+        audio_stream_index = video_stream_index + 1
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-loglevel', 'error',
+            '-stats',
+            '-i', f'{attributes["content_url"]}',
+            '-map', f'0:{video_stream_index}',
+            '-map', f'0:{audio_stream_index}',
+            '-c:v', 'copy',
+            '-c:a', 'copy',
+            '-async', '1',
+            f'{output_link}'
+        ]
+    else:
+        # Non-HLS content (radio): no stream mapping needed
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-loglevel', 'error',
+            '-stats',
+            '-i', f'{attributes["content_url"]}',
+            '-c', 'copy',
+            f'{output_link}'
+        ]
 
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
