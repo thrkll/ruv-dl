@@ -233,22 +233,21 @@ def subtitles(attributes) -> None:
 
 def fancy_folder(attributes) -> None:
     filepath = attributes['filepath']
-    
-    # Saves images to file
-    suffix = ['_thumbnail.jpg', '_portrait.jpg']
-    for url in attributes['image_urls']:
-        try:
-            image = requests.get(url)
-            open(filepath + attributes['title'] + suffix[0], 'wb').write(image.content)
-        except requests.exceptions.RequestException:
-            if url is not None:
-                print('\n Could not download image from ruv.is.')
-        suffix.pop(0)
+    # Save landscape and portrait images with Jellyfin/Plex/Emby naming conventions
+    filenames = ['fanart.jpg', 'poster.jpg']
+    for url, name in zip(attributes['image_urls'], filenames):
+        if url:
+            try:
+                image = requests.get(url, timeout=5)
+                image.raise_for_status()
+                with open(filepath + name, 'wb') as f:
+                    f.write(image.content)
+            except requests.exceptions.RequestException:
+                print(f'\n Could not download image: {url}')
 
-    # Saves description text to file
-    file = open(f'{filepath}description.txt', 
-                'x', 
-                encoding='utf8').write(attributes['description'])
+    # Save description to file
+    with open(f'{filepath}description.txt', 'w', encoding='utf-8') as file:
+        file.write(attributes['description'])
 
 def download(attributes) -> None:
     media_duration = attributes['media_duration']

@@ -50,7 +50,7 @@ By default, `ruv-dl` will download the mediafile at the best resolution offered 
 
 ### Folder structure
 
-If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file in a fancy folder together with all images and text description provided by RÚV.
+If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file in a fancy folder together with all images and text description provided by RÚV. Image filenames comply with naming conventions used by Plex, Jellyfin, Emby and more. 
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f`
 
@@ -86,6 +86,8 @@ Please raise an issue if you have a feature request or run into trouble (not unl
 
 ## 🚚 Versions
 
+📦 2.1.1 - 2025 06 - Default image filenames updated for media server compatibility
+
 📦 2.1.0 - 2023 02 - Complete refactoring, new features added
 
 📦 2.0.0 - 2023 01 - CLI version of ruv-dl with argparse
@@ -96,7 +98,7 @@ Please raise an issue if you have a feature request or run into trouble (not unl
 
 MIT License
 
-Copyright (c) 2023 Þorkell Einarsson
+Copyright (c) 2025 Þorkell Einarsson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
