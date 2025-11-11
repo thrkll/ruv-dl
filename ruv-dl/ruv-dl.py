@@ -38,18 +38,14 @@ def main():
 
 def ffmpeg_check() -> None:
     # Adds ffmpeg/ffprobe location to $PATH if specified by user
-    if args.ffmpeg_loc:
-        if os.path.exists(args.ffmpeg_loc):
-            os.environ['PATH'] += os.pathsep + args.ffmpeg_loc
+    if args.ffmpeg_loc and os.path.exists(args.ffmpeg_loc):
+        os.environ['PATH'] += os.pathsep + args.ffmpeg_loc
 
     # Checks whether ffmpeg/ffprobe is in $PATH
-    try: 
-        if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
-            raise TypeError
-    except TypeError:
-            print('\n Could not locate ffmpeg/ffprobe in $PATH.')
-            print(' Refer to --help.')
-            graceful_exit()
+    if shutil.which('ffmpeg') is None or shutil.which('ffprobe') is None:
+        print('\n Could not locate ffmpeg/ffprobe in $PATH.')
+        print(' Refer to --help.')
+        graceful_exit()
 
 def ruv_attributes(url) -> dict:
     attributes = {}
@@ -77,7 +73,7 @@ def ruv_attributes(url) -> dict:
 
     # Title - As RUV defines it...
     title = ruv_data['title']
-    if ruv_data['multiple_episodes'] == True:
+    if ruv_data.get('multiple_episodes') is True:
         secondary_title = ruv_data['episodes'][0]['title']
         title = f'{title} - {secondary_title}'
     
@@ -103,7 +99,8 @@ def ruv_attributes(url) -> dict:
 
     return attributes
 
-def resolution_setting() -> str:
+
+def resolution_setting() -> int:
     valid_resolutions = [1, 2, 3]
     if args.resolution:
         try: 
@@ -116,15 +113,14 @@ def resolution_setting() -> str:
             graceful_exit()
     else:
         resolution = valid_resolutions[0]
-    
-    # Stream index starts at 0
-    resolution -= 1
-    return resolution
+
+    # 0 = lowest, 1 = mid, 2 = highest
+    return resolution - 1
+
 
 def format_setting() -> str:
     if args.format:
-        file_format = args.format
-        file_format.replace('.', '')
+        file_format = args.format.replace('.', '')
 
         # Checks whether output format is supported by ffmpeg
         cmd = ['ffmpeg', '-formats']
@@ -136,10 +132,11 @@ def format_setting() -> str:
         for line in process.stdout:
             a = line.split()
             if len(a) > 2:
-                f = ['D', 'E', 'DE']
-                for i in f:
-                    if i in a[0]:
+                for flag in ('D', 'E', 'DE'):
+                    if flag in a[0]:
                         ffmpeg_formats.append(a[1])
+                        break
+
         if file_format not in ffmpeg_formats:
             print('\n File format is not supported by ffmpeg.')
             graceful_exit()
@@ -204,10 +201,10 @@ def media_duration(attributes) -> float:
         if any('403 Forbidden' in line for line in err_lines):
             print('\n Not allowed to download. Check if content is geoblocked.')
         else:
-            print(f'\n Unexpected ffprobe error: {err_lines}')
+            print('\n Unexpected ffprobe error.')
         graceful_exit()
-    media_duration = float(out_lines[0])
-    return media_duration
+
+    return float(out_lines[0])
 
 def subtitles(attributes) -> None:
     filepath = attributes['filepath']
@@ -235,6 +232,7 @@ def fancy_folder(attributes) -> None:
     filepath = attributes['filepath']
     # Save landscape and portrait images with Jellyfin/Plex/Emby naming conventions
     filenames = ['fanart.jpg', 'poster.jpg']
+
     for url, name in zip(attributes['image_urls'], filenames):
         if url:
             try:
@@ -243,11 +241,87 @@ def fancy_folder(attributes) -> None:
                 with open(filepath + name, 'wb') as f:
                     f.write(image.content)
             except requests.exceptions.RequestException:
-                print(f'\n Could not download image: {url}')
+                pass
 
     # Save description to file
     with open(f'{filepath}description.txt', 'w', encoding='utf-8') as file:
         file.write(attributes['description'])
+
+
+def get_hls_stream_indices(content_url: str, resolution_index: int):
+    """
+    Use ffprobe to detect available video/audio streams for an HLS URL.
+    resolution_index is 0-based (0,1,2,...) and will be clamped.
+    Returns (video_stream_index, audio_stream_index) or (None, None) on failure.
+    """
+    cmd = [
+        'ffprobe',
+        '-v', 'error',
+        '-show_entries', 'stream=index,codec_type,width,height',
+        '-of', 'csv=p=0',
+        content_url
+    ]
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True
+    )
+    out, err = process.communicate()
+
+    if process.returncode != 0:
+        return None, None
+
+    videos = []
+    audios = []
+
+    for line in out.strip().splitlines():
+        parts = line.split(',')
+        if len(parts) < 2:
+            continue
+
+        try:
+            idx = int(parts[0])
+        except ValueError:
+            continue
+
+        codec_type = parts[1].strip()
+
+        if codec_type == 'video':
+            width = height = 0
+            if len(parts) >= 4:
+                try:
+                    width = int(parts[2])
+                    height = int(parts[3])
+                except ValueError:
+                    pass
+            pixels = width * height
+            videos.append((idx, pixels))
+
+        elif codec_type == 'audio':
+            audios.append(idx)
+
+    if not videos and not audios:
+        return None, None
+
+    audio_idx = audios[0] if audios else None
+
+    if not videos:
+        return None, audio_idx
+
+    # Sort videos by resolution (pixels); lowest → highest
+    videos.sort(key=lambda x: x[1])
+
+    # Clamp resolution_index
+    if resolution_index < 0:
+        resolution_index = 0
+    if resolution_index >= len(videos):
+        resolution_index = len(videos) - 1
+
+    video_idx = videos[resolution_index][0]
+    return video_idx, audio_idx
+
 
 def download(attributes) -> None:
     media_duration = attributes['media_duration']
@@ -268,33 +342,32 @@ def download(attributes) -> None:
     is_hls = attributes['content_url'].endswith('.m3u8')
 
     if is_hls:
-        # HLS content: map the correct video and audio streams based on resolution
-        # Calculate stream indices based on desired resolution
-        video_stream_index = 2 * (attributes['resolution'] + 1)
-        audio_stream_index = video_stream_index + 1
-        cmd = [
-            'ffmpeg',
-            '-y',
-            '-loglevel', 'error',
-            '-stats',
-            '-i', f'{attributes["content_url"]}',
-            '-map', f'0:{video_stream_index}',
-            '-map', f'0:{audio_stream_index}',
+        res_idx = attributes['resolution']
+        v_idx, a_idx = get_hls_stream_indices(attributes["content_url"], res_idx)
+
+        cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-stats', '-i', attributes["content_url"]]
+
+        # Only map if we detected specific streams; otherwise let ffmpeg choose defaults
+        if v_idx is not None:
+            cmd.extend(['-map', f'0:{v_idx}'])
+        if a_idx is not None:
+            cmd.extend(['-map', f'0:{a_idx}'])
+
+        cmd.extend([
             '-c:v', 'copy',
             '-c:a', 'copy',
             '-async', '1',
-            f'{output_link}'
-        ]
+            output_link
+        ])
     else:
-        # Non-HLS content (radio): no stream mapping needed
         cmd = [
             'ffmpeg',
             '-y',
             '-loglevel', 'error',
             '-stats',
-            '-i', f'{attributes["content_url"]}',
+            '-i', attributes["content_url"],
             '-c', 'copy',
-            f'{output_link}'
+            output_link
         ]
 
     process = subprocess.Popen(cmd,
@@ -305,24 +378,55 @@ def download(attributes) -> None:
 
     # Measures duration
     start_time = time.time()
+    last_lines = []
 
-    # Download starts here
-    for line in process.stdout:
+    for raw_line in process.stdout:
+        line = raw_line.rstrip('\n')
+
+        # Keep last lines for error reporting
+        last_lines.append(line)
+        if len(last_lines) > 30:
+            last_lines.pop(0)
+
+        if 'time=' not in line:
+            continue
+
         try:
-            h,m,s = line.split('time=')[1][:8].split(':')
-            seconds_done = int(datetime.timedelta(hours=int(h),
-                                                minutes=int(m),
-                                                seconds=int(s)).total_seconds())
-            try:
-                speed = float(line.split('speed=')[1].replace('x','').strip())
+            time_str = line.split('time=')[1][:8]  # HH:MM:SS
+            h, m, s = time_str.split(':')
+            seconds_done = int(datetime.timedelta(
+                hours=int(h),
+                minutes=int(m),
+                seconds=int(s)
+            ).total_seconds())
+        except (IndexError, ValueError):
+            continue
+
+        eta = 'Unknown'
+        try:
+            speed = 1.0
+            if 'speed=' in line:
+                speed_part = line.split('speed=')[1].split('x')[0].strip()
+                if speed_part not in ['', 'N/A']:
+                    speed = float(speed_part)
+            if speed > 0:
                 eta = round_time((media_duration - seconds_done) / speed)
-            except (IndexError, ValueError, ZeroDivisionError):
-                # It can take a couple of lines for ffmpeg to calculate speed
-                eta = 'Unknown'
-        except Exception as e:
-            print(f'\n An unknown error occurred: \n {line}\n {e}')
-            graceful_exit()
+        except (IndexError, ValueError, ZeroDivisionError):
+            pass
+
         progress(seconds_done, eta)
+
+    process.wait()
+
+    # Clear progress bar line
+    print('\r\033[K', end='')
+
+    if process.returncode != 0:
+        print(f'\n{clr[4]}Error: ffmpeg exited with code {process.returncode}{clr[5]}')
+        print('[ERROR] Last ffmpeg output lines:')
+        for l in last_lines:
+            print('   ', l)
+        graceful_exit()
 
     # Rounds up time
     duration = round_time(time.time() - start_time)
