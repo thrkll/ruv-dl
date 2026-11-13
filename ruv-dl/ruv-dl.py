@@ -1,6 +1,7 @@
 from arguments import args
 from utils import clr, show_cursor, round_time, graceful_exit
 from hls import is_hls_url, hls_map_args
+from series import parse_ruv_url, fetch_episodes, parse_selection, select_episodes
 import shutil
 import requests
 import os
@@ -18,6 +19,15 @@ def main():
     # Checks whether user has ffmpeg/ffprobe in $PATH
     ffmpeg_check()
 
+    if args.episodes:
+        download_series()
+    else:
+        download_single()
+
+    # Our job here is done
+    graceful_exit()
+
+def download_single() -> None:
     # Gets data from the RUV api and defines necessary attributes
     attributes = ruv_attributes(args.input)
     attributes['resolution'] = resolution_setting()
@@ -25,17 +35,82 @@ def main():
     attributes['filepath'] = filepath_setting(attributes)
     attributes['media_duration'] = media_duration(attributes)
 
-    # Optional parameters                      
+    # Optional parameters
     if args.subtitles or args.subs_only:
         subtitles(attributes)
+        if args.subs_only:
+            return
     if args.fancy:
         fancy_folder(attributes)
 
     # Downloads media content
     download(attributes)
 
-    # Our job here is done
-    graceful_exit() 
+def download_series() -> None:
+    # Validates user settings before contacting ruv.is
+    try:
+        parse_selection(args.episodes)
+    except ValueError as e:
+        message = str(e)
+        print(f'\n {message[:1].upper() + message[1:]}.')
+        print(' Refer to --help.')
+        graceful_exit()
+    resolution = resolution_setting()
+    file_format = format_setting()
+
+    program_id, _ = parse_ruv_url(args.input)
+    if program_id is None:
+        print('\n Could not find a program ID in the URL. Check if URL is valid.')
+        graceful_exit()
+
+    try:
+        episodes = fetch_episodes(program_id)
+    except RuntimeError as e:
+        print(f'\n Could not get the episode list: {e}.')
+        graceful_exit()
+    selected, missing = select_episodes(episodes, args.episodes)
+
+    if missing:
+        print(f'\n Not available: episode {", ".join(map(str, missing))}')
+    if not selected:
+        print('\n No matching episodes available.')
+        graceful_exit()
+
+    count = len(selected)
+    print(f'\n Found {count} episode{"" if count == 1 else "s"}')
+
+    folder = None
+    used_titles = set()
+    for n, episode in enumerate(selected, 1):
+        attributes = ruv_attributes(args.input, program_id=program_id,
+                                    episode_id=episode['id'])
+        attributes['resolution'] = resolution
+        attributes['file_format'] = file_format
+
+        # Keeps filenames unique if episodes share a title
+        if attributes['title'] in used_titles:
+            attributes['title'] += f' ({episode.get("number") or episode["id"]})'
+        used_titles.add(attributes['title'])
+
+        # One folder (and one set of images) for the whole series
+        if folder is None:
+            folder = series_folder(attributes)
+            if args.fancy and not args.subs_only:
+                fancy_folder({**attributes, 'filepath': folder})
+        attributes['filepath'] = folder
+
+        print(f'\n {clr[1]}Episode {n} of {count}{clr[5]}', end='')
+        if not confirm_overwrite(attributes):
+            print(f'\n Skipping {attributes["title"]}')
+            continue
+        attributes['media_duration'] = media_duration(attributes)
+
+        if args.subtitles or args.subs_only:
+            subtitles(attributes)
+            if args.subs_only:
+                continue
+
+        download(attributes)
 
 def ffmpeg_check() -> None:
     # Adds ffmpeg/ffprobe location to $PATH if specified by user
@@ -48,14 +123,18 @@ def ffmpeg_check() -> None:
         print(' Refer to --help.')
         graceful_exit()
 
-def ruv_attributes(url) -> dict:
+def ruv_attributes(url, program_id=None, episode_id=None) -> dict:
     attributes = {}
 
-    # 27.12.19  Media slugs can have these structures
-    #           .../spila/content-name/XXXXX?ep=ZZZZZZ
-    #           .../spila/content-name/XXXXX/ZZZZZZ
-    #           .../spila/content-name/XXXXX
-    content_ids = url.replace('?ep=', '/').split('/')[-2:]
+    if episode_id:
+        # Series download: a specific episode of the program
+        content_ids = [str(program_id), str(episode_id)]
+    else:
+        # 27.12.19  Media slugs can have these structures
+        #           .../spila/content-name/XXXXX?ep=ZZZZZZ
+        #           .../spila/content-name/XXXXX/ZZZZZZ
+        #           .../spila/content-name/XXXXX
+        content_ids = url.replace('?ep=', '/').split('/')[-2:]
     api_url = f'https://api.ruv.is/api/programs/program/{"/".join(content_ids)}'
     try:
         data = requests.get(api_url, timeout=5)
@@ -73,18 +152,24 @@ def ruv_attributes(url) -> dict:
     ruv_data = data.json()
 
     # Title - As RUV defines it...
-    title = ruv_data['title']
+    show_title = ruv_data['title']
+    title = show_title
+    secondary_title = None
     if ruv_data.get('multiple_episodes') is True:
         secondary_title = ruv_data['episodes'][0]['title']
         title = f'{title} - {secondary_title}'
-    
-    # ...unless defined by user with -o flag...
+
+    # ...unless defined by user with -o flag (used as a prefix for series)...
     if args.output:
-        title = args.output
+        show_title = args.output
+        if episode_id and secondary_title:
+            title = f'{args.output} - {secondary_title}'
+        else:
+            title = args.output
 
     # ... and sanitizes filename
-    title = re.sub(r'[^\w_.)( -]', '', title)
-    attributes['title'] = title
+    attributes['title'] = re.sub(r'[^\w_.)( -]', '', title)
+    attributes['show_title'] = re.sub(r'[^\w_.)( -]', '', show_title)
 
     # Media content link
     attributes['content_url'] = ruv_data['episodes'][0]['file']
@@ -174,13 +259,30 @@ def filepath_setting(attributes) -> str:
         filepath = f'{new_folder}/'
 
     # Checks whether file already exists
-    if os.path.isfile(filepath + title + attributes['file_format']):
-        answer = input(f'''\n File already exists. 
-        \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
-        if answer.lower() != 'y':
-            graceful_exit()
+    if not confirm_overwrite({**attributes, 'filepath': filepath}):
+        graceful_exit()
 
     return filepath
+
+def confirm_overwrite(attributes) -> bool:
+    # Asks before overwriting an existing media file
+    path = attributes['filepath'] + attributes['title'] + attributes['file_format']
+    if os.path.isfile(path):
+        answer = input(f'''\n File already exists.
+        \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
+        return answer.lower() == 'y'
+    return True
+
+def series_folder(attributes) -> str:
+    # Series downloads share one folder that is reused, never deleted
+    if not args.fancy:
+        return './'
+    folder = './' + attributes['show_title']
+    if os.path.isdir(folder):
+        print(f'\n Adding to existing folder {clr[3]}{attributes["show_title"]}{clr[5]}')
+    else:
+        os.makedirs(folder)
+    return folder + '/'
 
 def media_duration(attributes) -> float:
     # Finds media duration with ffprobe and checks for geoblock
@@ -211,11 +313,9 @@ def subtitles(attributes) -> None:
     filepath = attributes['filepath']
     output = filepath + attributes['title']
 
-    # Skips subtitles if no link is available (exits if only subtitles were requested)
+    # Skips subtitles if no link is available
     if attributes['subtitle_url'] is None:
         print(f'\n No subtitles available {clr[3]}:({clr[5]}')
-        if args.subs_only:
-            graceful_exit()
         return
     
     # Downloads subtitle file and converts .vtt file to .srt
@@ -226,10 +326,6 @@ def subtitles(attributes) -> None:
     # Removes downloaded .vtt file
     os.remove(filepath + '.vtt')
     print('\n Subtitles downloaded')
-
-    # Exits if -so argument is provided
-    if args.subs_only:
-        graceful_exit()
 
 def fancy_folder(attributes) -> None:
     filepath = attributes['filepath']
@@ -363,8 +459,6 @@ def download(attributes) -> None:
     # Erases progress bar and prints download summary
     print('\r\033[K')
     print(f' {clr[2]}Download completed in {duration}{clr[5]}')
-
-    graceful_exit() 
 
 if __name__ == "__main__":
     try:
