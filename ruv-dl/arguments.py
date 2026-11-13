@@ -11,7 +11,7 @@ sample_3 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sam
 
 epilog = f' {clr[4]}Examples{clr[5]}: \n {sample_1}\n\n {sample_2}\n\n {sample_3}\n'
 
-usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-e] [-r] [-s] [-t] [-o] [-f] [-l] [-h]'
+usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-e] [-r] [-s] [-t] [-o] [-f] [-y | -n] [-l] [-h]'
 
 parser = argparse.ArgumentParser(description = usage,
                                  formatter_class = argparse.RawTextHelpFormatter,
@@ -66,6 +66,16 @@ group.add_argument('-o','--output',
 group.add_argument('-f', '--fancy',
                     action = 'store_true',
                     help = f'{clr[1]}Places output in a new folder and downloads media-thumbnails.{clr[5]}')
+
+answers = group.add_mutually_exclusive_group()
+answers.add_argument('-y', '--yes',
+                    action = 'store_true',
+                    help = f'{clr[1]}Overwrites existing files and folders without asking.{clr[5]}')
+
+answers.add_argument('-n', '--no',
+                    action = 'store_true',
+                    help = f'''{clr[1]}Never overwrites; skips files that already exist.
+Handy with -e to fetch only new episodes.{clr[5]}''')
 
 group.add_argument('-l', '--ffmpeg_loc',
                     type = str,

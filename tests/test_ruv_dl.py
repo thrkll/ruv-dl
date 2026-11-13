@@ -4,7 +4,7 @@ import io
 import os
 import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -120,7 +120,7 @@ class TestDownloadSeries(unittest.TestCase):
         return rest_response(pid, eid, title)
 
     def run_series(self, selection, fancy=False, output=None, subs_only=False,
-                   titles=None, stdin='y'):
+                   titles=None, stdin='y', yes=False, no=False):
         m = ruv_dl
         episodes = [dict(e) for e in self.EPISODES]
         if titles:
@@ -131,17 +131,18 @@ class TestDownloadSeries(unittest.TestCase):
         with mock.patch.multiple(m.args, input=self.URL, episodes=selection,
                                  fancy=fancy, output=output, resolution='2',
                                  format=None, subtitles=False,
-                                 subs_only=subs_only), \
+                                 subs_only=subs_only, yes=yes, no=no), \
                 mock.patch.object(m, 'fetch_episodes', return_value=episodes), \
                 mock.patch.object(m.requests, 'get', side_effect=self.fake_get), \
                 mock.patch.object(m, 'media_duration', return_value=60.0), \
                 mock.patch.object(m, 'fancy_folder') as fancy_folder, \
                 mock.patch.object(m, 'subtitles') as subtitles, \
-                mock.patch('builtins.input', return_value=stdin), \
+                mock.patch('builtins.input', return_value=stdin) as prompt, \
                 mock.patch.object(m, 'download') as download, \
                 redirect_stdout(out):
             m.download_series()
         self.output = out.getvalue()
+        self.prompt = prompt
         return download, fancy_folder, subtitles
 
     def downloaded(self, download):
@@ -205,10 +206,54 @@ class TestDownloadSeries(unittest.TestCase):
         self.assertEqual([a['title'] for a in self.downloaded(download)],
                          ['Sýning - Þáttur 2 af 3', 'Sýning - Þáttur 3 af 3'])
 
+    def test_no_flag_skips_existing_without_asking(self):
+        open('Sýning - Þáttur 1 af 3.mp4', 'w').close()
+        open('Sýning - Þáttur 3 af 3.mp4', 'w').close()
+        download, _, _ = self.run_series('all', no=True)
+        self.prompt.assert_not_called()
+        self.assertEqual([a['title'] for a in self.downloaded(download)],
+                         ['Sýning - Þáttur 2 af 3'])
+        self.assertIn('Skipping Sýning - Þáttur 1 af 3 (already exists)',
+                      self.output)
+
+    def test_yes_flag_overwrites_without_asking(self):
+        open('Sýning - Þáttur 1 af 3.mp4', 'w').close()
+        download, _, _ = self.run_series('all', yes=True, stdin='n')
+        self.prompt.assert_not_called()
+        self.assertEqual(download.call_count, 3)
+        self.assertIn('Overwriting (--yes)', self.output)
+
     def test_subs_only_downloads_no_media(self):
         download, _, subtitles = self.run_series('all', subs_only=True)
         download.assert_not_called()
         self.assertEqual(subtitles.call_count, 3)
+
+
+class TestAnswerFlags(unittest.TestCase):
+    def test_yes_and_no_are_exclusive(self):
+        parser = sys.modules['arguments'].parser
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parser.parse_args(['-i', 'x', '-y', '-n'])
+        self.assertTrue(parser.parse_args(['-i', 'x', '--no']).no)
+        self.assertTrue(parser.parse_args(['-i', 'x', '-y']).yes)
+
+    def test_single_download_with_no_flag_exits_without_asking(self):
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        cwd = os.getcwd()
+        os.chdir(tmp)
+        try:
+            open('Show.mp4', 'w').close()
+            out = io.StringIO()
+            with mock.patch.multiple(ruv_dl.args, fancy=False, no=True, yes=False), \
+                    mock.patch('builtins.input') as prompt, \
+                    redirect_stdout(out), self.assertRaises(SystemExit):
+                ruv_dl.filepath_setting(attrs('u.m3u8'))
+            prompt.assert_not_called()
+            self.assertIn('Nothing downloaded', out.getvalue())
+        finally:
+            os.chdir(cwd)
+            __import__('shutil').rmtree(tmp, ignore_errors=True)
 
 
 class TestBuildDownloadCmd(unittest.TestCase):

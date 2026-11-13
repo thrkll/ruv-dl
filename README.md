@@ -61,7 +61,11 @@ To download more than one episode, add `-e` with the episodes you want. Any epis
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -s`
 
-Episodes are saved as `Show - Episode title`. With `-f`, they all go in one folder named after the show. Running the same command again later adds new episodes to that folder and asks before overwriting ones you already have. With `-o`, the name you give replaces the show name.
+Episodes are saved as `Show - Episode title`. With `-f`, they all go in one folder named after the show. Running the same command again later adds new episodes to that folder and asks before overwriting ones you already have. Add `-n` (`--no`) to skip existing episodes without being asked, or `-y` (`--yes`) to overwrite them all. This is handy for picking up new episodes:
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -n`
+
+The same flags answer the overwrite question for single downloads too. With `-o`, the name you give replaces the show name.
 
 ### Folder structure
 

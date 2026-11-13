@@ -101,7 +101,7 @@ def download_series() -> None:
 
         print(f'\n {clr[1]}Episode {n} of {count}{clr[5]}', end='')
         if not confirm_overwrite(attributes):
-            print(f'\n Skipping {attributes["title"]}')
+            print(f'\n Skipping {attributes["title"]} (already exists)')
             continue
         attributes['media_duration'] = media_duration(attributes)
 
@@ -241,9 +241,8 @@ def filepath_setting(attributes) -> str:
 
         # Checks whether folder already exists
         if os.path.exists(new_folder):
-            answer = input(f'''\n Fancy folder already exists. 
-            \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
-            if answer.lower() != 'y':
+            if not ask('Fancy folder already exists.'):
+                print('\n Fancy folder already exists. Nothing downloaded.')
                 graceful_exit()
 
             # Removes existing folder
@@ -260,17 +259,27 @@ def filepath_setting(attributes) -> str:
 
     # Checks whether file already exists
     if not confirm_overwrite({**attributes, 'filepath': filepath}):
+        print('\n File already exists. Nothing downloaded.')
         graceful_exit()
 
     return filepath
+
+def ask(message) -> bool:
+    # Asks whether to overwrite, unless answered in advance with --yes/--no
+    if args.yes:
+        print(f'\n {message} Overwriting (--yes).')
+        return True
+    if args.no:
+        return False
+    answer = input(f'''\n {message}
+    \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
+    return answer.strip().lower() == 'y'
 
 def confirm_overwrite(attributes) -> bool:
     # Asks before overwriting an existing media file
     path = attributes['filepath'] + attributes['title'] + attributes['file_format']
     if os.path.isfile(path):
-        answer = input(f'''\n File already exists.
-        \r Do you want to overwrite? [{clr[3]}y/n{clr[5]}]: ''')
-        return answer.lower() == 'y'
+        return ask('File already exists.')
     return True
 
 def series_folder(attributes) -> str:
