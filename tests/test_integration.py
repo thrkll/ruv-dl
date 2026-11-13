@@ -86,6 +86,31 @@ class TestRealFfmpeg(unittest.TestCase):
             self.assertEqual(len(audio), 1)
             self.assertEqual(audio[0]['tags'].get('language'), 'isl')
 
+    def test_metadata_tags_written_to_mp4(self):
+        import mediaserver
+        url = make_audio_group_hls(self.tmp)
+        meta = {'program_title': 'Blæja II', 'multiple_episodes': True,
+                'episode_title': 'Mömmuskóli', 'number': '5',
+                'firstrun': '2024-10-14T08:00:00',
+                'episode_description': 'Blæja leikur mömmu.',
+                'genres': ['Barnaefni']}
+        tags = mediaserver.metadata_args(meta, mediaserver.layout(meta), '.mp4')
+        dest = os.path.join(self.tmp, 'tagged.mp4')
+        args, _ = hls.hls_map_args(url, 0)
+        run(['ffmpeg', '-y', '-loglevel', 'error', '-i', url] + args +
+            ['-c:v', 'copy', '-c:a', 'copy'] + tags + [dest], self.tmp)
+        out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries',
+                              'format_tags', '-of', 'json', dest],
+                             check=True, stdout=subprocess.PIPE).stdout
+        written = json.loads(out.decode('utf-8'))['format']['tags']
+        self.assertEqual(written.get('title'), 'Mömmuskóli')
+        self.assertEqual(written.get('show'), 'Blæja')
+        self.assertEqual(written.get('episode_id'), 'S02E05')
+        self.assertEqual(written.get('season_number'), '2')
+        self.assertEqual(written.get('episode_sort'), '5')
+        self.assertEqual(written.get('description'), 'Blæja leikur mömmu.')
+        self.assertEqual(written.get('network'), 'RÚV')
+
     def test_audio_only(self):
         url = make_audio_only_hls(self.tmp)
         dest = os.path.join(self.tmp, 'radio.mp4')
