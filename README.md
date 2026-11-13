@@ -8,6 +8,9 @@
 
 `ruv-dl` is a simple Python command-line  tool to download media content from [RÚV](https://ruv.is).
 
+> **🌐 No Python? Use the web version: [thrkll.github.io/ruv-dl](https://thrkll.github.io/ruv-dl/)**
+> Paste a ruv.is link and download. Nothing to install. [More below](#-web-version-experimental).
+
 ## ✨ Features
 
 🔹 FFmpeg wrapper to download TV and radio programs from ruv.is given a provided URL
@@ -17,6 +20,21 @@
 🔹 Choose between resolutions offered by RÚV and file formats supported by FFmpeg
 
 ![ruv-dl download](/img/download.svg)
+
+## 🌐 Web version (experimental)
+
+### 👉 [thrkll.github.io/ruv-dl](https://thrkll.github.io/ruv-dl/)
+
+Don't want to install anything? Open the link above, paste a ruv.is link, pick an episode and quality, and download an `.mp4` with subtitles. It runs entirely in your browser: nothing is installed, and the video comes straight from RÚV to your computer.
+
+- Works best in Chrome and Edge, which save straight to disk. Firefox and Safari keep the file in memory until it is finished, which is fine for single episodes.
+- The page may only contact RÚV's servers (enforced by a Content Security Policy). Its one library, [mux.js](https://github.com/videojs/mux.js), is pinned and checked with a hash.
+- It relies on RÚV allowing other websites to read its streams, which RÚV could change at any time.
+
+The source is in [`web/`](web/). To run this locally:
+
+`$ python -m http.server 8000` and open http://localhost:8000
+
 
 ## ⚡️ Installation
 
