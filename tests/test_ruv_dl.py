@@ -49,6 +49,24 @@ class TestResolutionSetting(unittest.TestCase):
                 self.run_with(bad)
 
 
+class TestMissingSubtitles(unittest.TestCase):
+    def run_subtitles(self, subs_only):
+        a = attrs('https://ruv.is/x/index.m3u8')
+        a['subtitle_url'] = None
+        out = io.StringIO()
+        with mock.patch.object(ruv_dl.args, 'subs_only', subs_only), \
+                redirect_stdout(out):
+            ruv_dl.subtitles(a)
+        return out.getvalue()
+
+    def test_missing_subtitles_continue_to_download(self):
+        self.assertIn('No subtitles available', self.run_subtitles(False))
+
+    def test_missing_subtitles_with_subs_only_exits(self):
+        with self.assertRaises(SystemExit):
+            self.run_subtitles(True)
+
+
 class TestBuildDownloadCmd(unittest.TestCase):
     def test_hls_with_query_string_uses_stream_selection(self):
         url = 'https://ruv.is/x/index.m3u8?token=abc'
