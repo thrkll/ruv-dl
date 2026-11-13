@@ -48,6 +48,25 @@ By default, `ruv-dl` downloads the highest resolution RÚV offers for the progra
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -r 2`
 
+### Series
+
+To download more than one episode, add `-e` with the episodes you want. Any episode URL of the series works, as does the series URL.
+
+| `-e` | Downloads |
+| --- | --- |
+| `all` | Every episode currently available |
+| `3` | Episode 3 |
+| `1-3,5` | Episodes 1, 2, 3 and 5 |
+| `4-` | Episode 4 and everything after it |
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -s`
+
+Episodes are saved as `Show - Episode title`. With `-f`, they all go in one folder named after the show. Running the same command again later adds new episodes to that folder and asks before overwriting ones you already have. Add `-n` (`--no`) to skip existing episodes without being asked, or `-y` (`--yes`) to overwrite them all. This is handy for picking up new episodes:
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -n`
+
+The same flags answer the overwrite question for single downloads too. With `-o`, the name you give replaces the show name.
+
 ### Folder structure
 
 If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file in a fancy folder together with all images and text description provided by RÚV. Image filenames comply with naming conventions used by Plex, Jellyfin, Emby and more. 

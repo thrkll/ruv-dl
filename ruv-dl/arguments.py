@@ -5,11 +5,13 @@ sample_1 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sam
     {clr[1]}Downloads media in the highest available quality with .srt file and places into a fancy folder{clr[5]}'''
 sample_2 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -r 3 -o my_filename -t avi
     {clr[1]}Downloads media in the third-highest available quality under "my_filename.avi"{clr[5]}'''
+sample_3 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -e all -f
+    {clr[1]}Downloads every available episode of the series into one fancy folder{clr[5]}'''
 
 
-epilog = f' {clr[4]}Examples{clr[5]}: \n {sample_1}\n\n {sample_2}\n'
+epilog = f' {clr[4]}Examples{clr[5]}: \n {sample_1}\n\n {sample_2}\n\n {sample_3}\n'
 
-usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-r] [-s] [-t] [-o] [-f] [-l] [-h]'
+usage = f' \n {clr[4]}Usage{clr[5]}:\n  ruv-dl.py -i [-e] [-r] [-s] [-t] [-o] [-f] [-y | -n] [-l] [-h]'
 
 parser = argparse.ArgumentParser(description = usage,
                                  formatter_class = argparse.RawTextHelpFormatter,
@@ -24,6 +26,15 @@ required.add_argument('-i', '--input',
                       required=True)
 
 group = parser.add_argument_group(f' {clr[4]}Optional arguments{clr[5]}')
+
+group.add_argument('-e', '--episodes',
+                    type = str,
+                    metavar = '\b',
+                    help = f'''\t{clr[1]}Downloads several episodes of a series.
+all\tEvery available episode
+3\tEpisode 3
+1-3,5\tEpisodes 1 to 3 and 5
+4-\tEpisode 4 and later{clr[5]}''')
 
 group.add_argument('-r', '--resolution',
                     type = str,
@@ -55,6 +66,16 @@ group.add_argument('-o','--output',
 group.add_argument('-f', '--fancy',
                     action = 'store_true',
                     help = f'{clr[1]}Places output in a new folder and downloads media-thumbnails.{clr[5]}')
+
+answers = group.add_mutually_exclusive_group()
+answers.add_argument('-y', '--yes',
+                    action = 'store_true',
+                    help = f'{clr[1]}Overwrites existing files and folders without asking.{clr[5]}')
+
+answers.add_argument('-n', '--no',
+                    action = 'store_true',
+                    help = f'''{clr[1]}Never overwrites; skips files that already exist.
+Handy with -e to fetch only new episodes.{clr[5]}''')
 
 group.add_argument('-l', '--ffmpeg_loc',
                     type = str,
