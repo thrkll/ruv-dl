@@ -211,10 +211,12 @@ def subtitles(attributes) -> None:
     filepath = attributes['filepath']
     output = filepath + attributes['title']
 
-    # Returns if no subtitle link available
-    if attributes['subtitle_url'] == None:
+    # Skips subtitles if no link is available (exits if only subtitles were requested)
+    if attributes['subtitle_url'] is None:
         print(f'\n No subtitles available {clr[3]}:({clr[5]}')
-        graceful_exit()
+        if args.subs_only:
+            graceful_exit()
+        return
     
     # Downloads subtitle file and converts .vtt file to .srt
     r = requests.get(attributes['subtitle_url'])
