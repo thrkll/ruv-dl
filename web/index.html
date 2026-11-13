@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The page may only talk to RÚV; scripts come from this site and one pinned library -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://*.ruv.is https://*.akamaized.net; img-src 'self' https://*.ruv.is data:; style-src 'self' 'unsafe-inline'; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>ruv-dl web</title>
+<meta name="description" content="Download programs from ruv.is straight from your browser. Nothing to install.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%BA%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f5f2; --surface: #ffffff; --text: #1d1d1f; --muted: #6b6b70;
+    --border: #e3e1dc; --accent: #0b5cad; --accent-text: #ffffff;
+    --danger: #b3261e; --ok: #1d7a3e; --track: #e9e7e2;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141416; --surface: #1d1d20; --text: #ececee; --muted: #a0a0a8;
+      --border: #313136; --accent: #5aa2f0; --accent-text: #0b1420;
+      --danger: #ff8a80; --ok: #6fd391; --track: #2a2a2f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141416; --surface: #1d1d20; --text: #ececee; --muted: #a0a0a8;
+    --border: #313136; --accent: #5aa2f0; --accent-text: #0b1420;
+    --danger: #ff8a80; --ok: #6fd391; --track: #2a2a2f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  form.lookup { display: flex; gap: 8px; }
+  input[type="url"], select {
+    font: inherit; color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    width: 100%; min-width: 0;
+  }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer; background: var(--accent); color: var(--accent-text);
+    white-space: nowrap;
+  }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: default; }
+  .card {
+    margin-top: 24px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--track); }
+  .card .body { padding: 16px 20px 20px; }
+  .card h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  .card .desc { color: var(--muted); margin: 0 0 16px; font-size: .95rem; }
+  .fields { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  .fields label { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .fields .wide { grid-column: 1 / -1; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 14px 0 18px; font-size: .95rem; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .progress { margin-top: 16px; }
+  .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .status { margin-top: 8px; font-size: .9rem; color: var(--muted); min-height: 1.4em; }
+  .status.error { color: var(--danger); }
+  .status.ok { color: var(--ok); }
+  .note { margin-top: 12px; font-size: .85rem; color: var(--muted); }
+  footer { margin-top: 32px; font-size: .85rem; color: var(--muted); }
+  footer a { color: inherit; }
+  [hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    form.lookup { flex-direction: column; }
+    .fields { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>📺 ruv-dl web</h1>
+  <p class="lead">Download programs from ruv.is straight from your browser. Nothing to install.</p>
+
+  <form class="lookup" id="lookup">
+    <input type="url" id="url" required autocomplete="off" spellcheck="false"
+           placeholder="https://www.ruv.is/sjonvarp/spila/…" aria-label="Link to a program on ruv.is">
+    <button type="submit" id="find">Find</button>
+  </form>
+  <div class="status" id="lookup-status" role="status"></div>
+
+  <section class="card" id="program" hidden>
+    <img id="image" alt="">
+    <div class="body">
+      <h2 id="title"></h2>
+      <p class="desc" id="description"></p>
+
+      <div class="fields">
+        <label class="wide" id="episode-field">Episode
+          <select id="episode"></select>
+        </label>
+        <label class="wide">Quality
+          <select id="quality"></select>
+        </label>
+      </div>
+
+      <label class="check"><input type="checkbox" id="subs"> <span id="subs-label">Icelandic subtitles (.srt)</span></label>
+
+      <div class="actions">
+        <button id="download" type="button">Download</button>
+        <button id="cancel" type="button" class="secondary" hidden>Cancel</button>
+      </div>
+
+      <div class="progress" id="progress" hidden>
+        <div class="bar"><div id="bar"></div></div>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <p class="note" id="memory-note" hidden>
+        Your browser keeps the whole file in memory until it is finished.
+        For long programs, Chrome or Edge work better: they save straight to disk.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Everything runs in your browser and the video comes straight from RÚV, so it
+    works wherever ruv.is works for you. Nothing is sent anywhere else.
+    Prototype of <a href="https://github.com/thrkll/ruv-dl">ruv-dl</a>.
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mux.js@7.0.3/dist/mux.min.js"
+        integrity="sha384-cT6o2+g8AVNwxTis1pBqg12CyGFRTb2533+GsA2dHYUZUno8lVl4QgMXxQkUgXTd"
+        crossorigin="anonymous"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
