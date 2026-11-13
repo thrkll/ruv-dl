@@ -2,6 +2,7 @@ from arguments import args
 from utils import clr, show_cursor, round_time, graceful_exit
 from hls import is_hls_url, hls_map_args
 from series import parse_ruv_url, fetch_episodes, parse_selection, select_episodes
+import mediaserver
 import shutil
 import requests
 import os
@@ -32,7 +33,13 @@ def download_single() -> None:
     attributes = ruv_attributes(args.input)
     attributes['resolution'] = resolution_setting()
     attributes['file_format'] = format_setting()
-    attributes['filepath'] = filepath_setting(attributes)
+    if args.media_server:
+        apply_media_server_layout(attributes)
+        if not confirm_overwrite(attributes):
+            print('\n File already exists. Nothing downloaded.')
+            graceful_exit()
+    else:
+        attributes['filepath'] = filepath_setting(attributes)
     attributes['media_duration'] = media_duration(attributes)
 
     # Optional parameters
@@ -40,7 +47,9 @@ def download_single() -> None:
         subtitles(attributes)
         if args.subs_only:
             return
-    if args.fancy:
+    if args.media_server:
+        media_server_files(attributes)
+    elif args.fancy:
         fancy_folder(attributes)
 
     # Downloads media content
@@ -87,17 +96,20 @@ def download_series() -> None:
         attributes['resolution'] = resolution
         attributes['file_format'] = file_format
 
-        # Keeps filenames unique if episodes share a title
-        if attributes['title'] in used_titles:
-            attributes['title'] += f' ({episode.get("number") or episode["id"]})'
-        used_titles.add(attributes['title'])
+        if args.media_server:
+            apply_media_server_layout(attributes)
+        else:
+            # One folder (and one set of images) for the whole series
+            if folder is None:
+                folder = series_folder(attributes)
+                if args.fancy and not args.subs_only:
+                    fancy_folder({**attributes, 'filepath': folder})
+            attributes['filepath'] = folder
 
-        # One folder (and one set of images) for the whole series
-        if folder is None:
-            folder = series_folder(attributes)
-            if args.fancy and not args.subs_only:
-                fancy_folder({**attributes, 'filepath': folder})
-        attributes['filepath'] = folder
+        # Keeps filenames unique if episodes share a title
+        if attributes['filepath'] + attributes['title'] in used_titles:
+            attributes['title'] += f' ({episode.get("number") or episode["id"]})'
+        used_titles.add(attributes['filepath'] + attributes['title'])
 
         print(f'\n {clr[1]}Episode {n} of {count}{clr[5]}', end='')
         if not confirm_overwrite(attributes):
@@ -109,6 +121,8 @@ def download_series() -> None:
             subtitles(attributes)
             if args.subs_only:
                 continue
+        if args.media_server:
+            media_server_files(attributes)
 
         download(attributes)
 
@@ -182,6 +196,25 @@ def ruv_attributes(url, program_id=None, episode_id=None) -> dict:
 
     # Description
     attributes['description'] = '\n'.join(ruv_data['description'])
+
+    # Metadata for file tags and media server naming
+    episode = ruv_data['episodes'][0]
+    rating = str(episode.get('rating') or '').strip()
+    attributes['meta'] = {
+        'program_title': ruv_data['title'],
+        'foreign_title': ruv_data.get('foreign_title'),
+        'multiple_episodes': ruv_data.get('multiple_episodes') is True,
+        'episode_title': secondary_title,
+        'number': episode.get('number'),
+        'firstrun': episode.get('firstrun'),
+        'rating': 'L' if rating == '0' else rating,   # L = suitable for all
+        'program_description': attributes['description'],
+        'episode_description': '\n'.join(episode.get('description') or []),
+        'genres': [c['title'] for c in ruv_data.get('categories') or []
+                   if isinstance(c, dict) and c.get('title')],
+        'episode_image': episode.get('image'),
+    }
+    attributes['layout'] = mediaserver.layout(attributes['meta'], args.output)
 
     return attributes
 
@@ -320,7 +353,8 @@ def media_duration(attributes) -> float:
 
 def subtitles(attributes) -> None:
     filepath = attributes['filepath']
-    output = filepath + attributes['title']
+    # Media servers read the language from 'Name.is.srt'
+    output = filepath + attributes['title'] + attributes.get('subtitle_suffix', '')
 
     # Skips subtitles if no link is available
     if attributes['subtitle_url'] is None:
@@ -355,11 +389,62 @@ def fancy_folder(attributes) -> None:
     with open(f'{filepath}description.txt', 'w', encoding='utf-8') as file:
         file.write(attributes['description'])
 
+def apply_media_server_layout(attributes) -> None:
+    # -m: Show/Season XX/Show - SXXEYY - Title naming, folders created as needed
+    layout = attributes['layout']
+    os.makedirs(layout['folder'], exist_ok=True)
+    attributes['filepath'] = layout['folder']
+    attributes['title'] = layout['basename']
+    attributes['subtitle_suffix'] = '.is'
+
+def save_image(url, path, replace=True) -> None:
+    # Images are a nice-to-have; failures are ignored
+    if not url or (not replace and os.path.isfile(path)):
+        return
+    try:
+        image = requests.get(url, timeout=5)
+        image.raise_for_status()
+        with open(path, 'wb') as f:
+            f.write(image.content)
+    except (requests.exceptions.RequestException, OSError):
+        pass
+
+def write_text(path, text, replace=True) -> None:
+    if replace or not os.path.isfile(path):
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(text)
+
+def media_server_files(attributes) -> None:
+    # Writes .nfo files and artwork next to the media file
+    layout, meta = attributes['layout'], attributes['meta']
+    landscape, portrait = attributes['image_urls']
+    show_folder, folder = layout['show_folder'], layout['folder']
+    basename = layout['basename']
+
+    # Show level: kept if already there (e.g. from an earlier season)
+    if layout['kind'] == 'episode':
+        write_text(show_folder + 'tvshow.nfo',
+                   mediaserver.tvshow_nfo(meta, layout), replace=False)
+    save_image(landscape, show_folder + 'fanart.jpg', replace=False)
+    save_image(portrait, show_folder + 'poster.jpg', replace=False)
+
+    # Season poster (each RÚV program is one season) and episode files
+    if layout['kind'] == 'episode':
+        save_image(portrait, folder + 'poster.jpg', replace=False)
+        save_image(meta.get('episode_image'), f'{folder}{basename}-thumb.jpg')
+    write_text(f'{folder}{basename}.nfo', mediaserver.episode_nfo(meta, layout))
+
 
 def build_download_cmd(attributes, map_args_fn=hls_map_args) -> list:
     """Builds the ffmpeg command used to download the media content."""
     output_link = attributes['filepath'] + attributes['title'] + attributes['file_format']
     content_url = attributes['content_url']
+
+    # Title, show, episode, description etc. embedded in the file
+    metadata = []
+    if 'meta' in attributes:
+        metadata = mediaserver.metadata_args(attributes['meta'], attributes['layout'],
+                                             attributes['file_format'])
 
     if is_hls_url(content_url):
         map_args, warning = map_args_fn(content_url, attributes['resolution'])
@@ -372,6 +457,7 @@ def build_download_cmd(attributes, map_args_fn=hls_map_args) -> list:
             '-c:v', 'copy',
             '-c:a', 'copy',
             '-async', '1',
+            *metadata,
             output_link
         ])
     else:
@@ -382,6 +468,7 @@ def build_download_cmd(attributes, map_args_fn=hls_map_args) -> list:
             '-stats',
             '-i', content_url,
             '-c', 'copy',
+            *metadata,
             output_link
         ]
     return cmd

@@ -69,9 +69,30 @@ The same flags answer the overwrite question for single downloads too. With `-o`
 
 ### Folder structure
 
-If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file in a fancy folder together with all images and text description provided by RÚV. Image filenames comply with naming conventions used by Plex, Jellyfin, Emby and more. 
+If you are fancy 🎩 - make sure to include the `-f` argument. This will bundle the media file in a fancy folder together with all images and text description provided by RÚV.
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -f`
+
+### Media server
+
+Use `-m` if the files are going into Jellyfin, Plex, Emby etc. Episodes are named and sorted the way those apps expect, with `.nfo` files carrying the title, description, air date and age rating, plus poster, fanart and episode thumbnails:
+
+```
+Blæja/
+├── tvshow.nfo  poster.jpg  fanart.jpg
+└── Season 02/
+    ├── poster.jpg
+    ├── Blæja - S02E05 - Mömmuskóli.mp4
+    ├── Blæja - S02E05 - Mömmuskóli.nfo
+    ├── Blæja - S02E05 - Mömmuskóli-thumb.jpg
+    └── Blæja - S02E05 - Mömmuskóli.is.srt
+```
+
+`$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -m -s -n`
+
+RÚV publishes each season as a separate program with a Roman numeral at the end (Blæja **II**), so `ruv-dl` reads that numeral as the season number. Every season then lands in the same show folder. Programs without episodes, such as films, get their own folder: `Film/Film.mp4`. Use `-o` to choose a different show name. `-m` replaces `-f`, and existing folders are never deleted.
+
+Every download, with or without `-m`, has the title, show, episode number, description and air date embedded in the file itself.
 
 ### Subtitles
 

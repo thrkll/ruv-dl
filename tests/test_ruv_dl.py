@@ -85,14 +85,18 @@ class TestMissingSubtitles(unittest.TestCase):
         self.run_single(subs_only=True).assert_not_called()
 
 
-def rest_response(program_id, episode_id, title, multiple=True):
+def rest_response(program_id, episode_id, title, multiple=True, number=None,
+                  program_title='Sýning'):
     """Fake api.ruv.is response for one episode."""
     r = mock.Mock()
     r.raise_for_status.return_value = None
     r.json.return_value = {
-        'title': 'Sýning', 'multiple_episodes': multiple,
+        'title': program_title, 'multiple_episodes': multiple,
+        'foreign_title': None, 'categories': [{'title': 'Leikið efni'}],
         'image': None, 'portrait_image': None, 'description': ['Lýsing'],
-        'episodes': [{'id': episode_id, 'title': title,
+        'episodes': [{'id': episode_id, 'title': title, 'number': number,
+                      'firstrun': '2026-04-04T10:00:00', 'rating': '12',
+                      'description': ['Um þáttinn'],
                       'file': f'https://cdn/{episode_id}/index.m3u8',
                       'subtitles_url': None}]}
     return r
@@ -103,6 +107,7 @@ class TestDownloadSeries(unittest.TestCase):
     EPISODES = [{'id': 'e1', 'number': '1', 'title': 'Þáttur 1 af 3'},
                 {'id': 'e2', 'number': '2', 'title': 'Þáttur 2 af 3'},
                 {'id': 'e3', 'number': '3', 'title': 'Þáttur 3 af 3'}]
+    PROGRAM_TITLE = 'Sýning'
 
     def setUp(self):
         import tempfile
@@ -116,11 +121,13 @@ class TestDownloadSeries(unittest.TestCase):
     def fake_get(self, url, timeout=None):
         self.rest_calls.append(url)
         pid, eid = url.rstrip('/').split('/')[-2:]
-        title = next(e['title'] for e in self.EPISODES if e['id'] == eid)
-        return rest_response(pid, eid, title)
+        e = next(e for e in self.EPISODES if e['id'] == eid)
+        return rest_response(pid, eid, e['title'], number=e['number'],
+                             program_title=self.PROGRAM_TITLE)
 
     def run_series(self, selection, fancy=False, output=None, subs_only=False,
-                   titles=None, stdin='y', yes=False, no=False):
+                   titles=None, stdin='y', yes=False, no=False,
+                   media_server=False):
         m = ruv_dl
         episodes = [dict(e) for e in self.EPISODES]
         if titles:
@@ -131,7 +138,8 @@ class TestDownloadSeries(unittest.TestCase):
         with mock.patch.multiple(m.args, input=self.URL, episodes=selection,
                                  fancy=fancy, output=output, resolution='2',
                                  format=None, subtitles=False,
-                                 subs_only=subs_only, yes=yes, no=no), \
+                                 subs_only=subs_only, yes=yes, no=no,
+                                 media_server=media_server), \
                 mock.patch.object(m, 'fetch_episodes', return_value=episodes), \
                 mock.patch.object(m.requests, 'get', side_effect=self.fake_get), \
                 mock.patch.object(m, 'media_duration', return_value=60.0), \
@@ -223,6 +231,34 @@ class TestDownloadSeries(unittest.TestCase):
         self.assertEqual(download.call_count, 3)
         self.assertIn('Overwriting (--yes)', self.output)
 
+    def test_media_server_layout_and_files(self):
+        self.PROGRAM_TITLE = 'Sýning II'
+        os.makedirs('Sýning')
+        open(os.path.join('Sýning', 'tvshow.nfo'), 'w').close()  # earlier season
+        download, fancy_folder, _ = self.run_series('1-2', media_server=True,
+                                                    fancy=True)
+        got = self.downloaded(download)
+        self.assertEqual([a['filepath'] + a['title'] for a in got],
+                         ['./Sýning/Season 02/Sýning - S02E01',
+                          './Sýning/Season 02/Sýning - S02E02'])
+        self.assertTrue(all(a['subtitle_suffix'] == '.is' for a in got))
+        fancy_folder.assert_not_called()
+        season = os.path.join('Sýning', 'Season 02')
+        with open(os.path.join(season, 'Sýning - S02E01.nfo'), encoding='utf-8') as f:
+            nfo = f.read()
+        self.assertIn('<season>2</season>', nfo)
+        self.assertIn('<episode>1</episode>', nfo)
+        self.assertIn('<aired>2026-04-04</aired>', nfo)
+        # Show-level file from an earlier season is left alone
+        self.assertEqual(os.path.getsize(os.path.join('Sýning', 'tvshow.nfo')), 0)
+
+    def test_media_server_skips_existing_with_no_flag(self):
+        os.makedirs(os.path.join('Sýning', 'Season 01'))
+        open(os.path.join('Sýning', 'Season 01', 'Sýning - S01E02.mp4'), 'w').close()
+        download, _, _ = self.run_series('all', media_server=True, no=True)
+        self.assertEqual([a['title'] for a in self.downloaded(download)],
+                         ['Sýning - S01E01', 'Sýning - S01E03'])
+
     def test_subs_only_downloads_no_media(self):
         download, _, subtitles = self.run_series('all', subs_only=True)
         download.assert_not_called()
@@ -281,6 +317,18 @@ class TestBuildDownloadCmd(unittest.TestCase):
                 map_args_fn=lambda u, r: ([], 'probe failed'))
         self.assertNotIn('-map', cmd)
         self.assertIn('probe failed', out.getvalue())
+
+    def test_metadata_tags_added_before_output(self):
+        a = attrs('https://ruv.is/x/index.m3u8')
+        a['meta'] = {'program_title': 'Sýning', 'multiple_episodes': True,
+                     'episode_title': 'Fyrsti', 'number': '1',
+                     'firstrun': '2026-01-02T00:00:00'}
+        a['layout'] = ruv_dl.mediaserver.layout(a['meta'])
+        cmd = ruv_dl.build_download_cmd(a, map_args_fn=lambda u, r: ([], None))
+        self.assertEqual(cmd[-1], './Show.mp4')
+        self.assertIn('show=Sýning', cmd)
+        self.assertIn('episode_id=S01E01', cmd)
+        self.assertEqual(cmd[cmd.index('show=Sýning') - 1], '-metadata')
 
     def test_non_hls_unchanged(self):
         def never(*_):
