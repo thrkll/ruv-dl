@@ -150,6 +150,8 @@ Please raise an issue if you have a feature request or run into trouble (not unl
 
 ## 🚚 Versions
 
+📦 2.2.0 - 2026 11 - Series download, media server layout with metadata, web version and better quality/audio selection
+
 📦 2.1.3 - 2025 06 - Default image filenames updated for media server compatibility
 
 📦 2.1.0 - 2023 02 - Complete refactoring, new features added
