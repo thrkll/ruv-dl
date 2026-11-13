@@ -2,9 +2,9 @@ import argparse
 from utils import clr
 
 sample_1 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -s -f
-    {clr[1]}Downloads media in Very good resolution with .srt file and places into a fancy folder{clr[5]}'''
+    {clr[1]}Downloads media in the highest available quality with .srt file and places into a fancy folder{clr[5]}'''
 sample_2 = f''' python ruv-dl.py -i https://ruv.is/spila/content-name/sample/sample -r 3 -o my_filename -t avi
-    {clr[1]}Downloads media in Okay resolution under "my_filename.avi"{clr[5]}'''
+    {clr[1]}Downloads media in the third-highest available quality under "my_filename.avi"{clr[5]}'''
 
 
 epilog = f' {clr[4]}Examples{clr[5]}: \n {sample_1}\n\n {sample_2}\n'
@@ -28,9 +28,11 @@ group = parser.add_argument_group(f' {clr[4]}Optional arguments{clr[5]}')
 group.add_argument('-r', '--resolution',
                     type = str,
                     metavar='\b',
-                    help = f'''\t{clr[1]}1 3600kbps\t1920x1080\tVery good (default)
-2 2400kbps\t1280x720\tPretty good
-3 1200kbps\t852x480\t\tOkay{clr[5]}''')
+                    help = f'''\t{clr[1]}1\tHighest available quality (default)
+2\tSecond-highest available quality
+3\tThird-highest available quality
+Picks among the stream variants ruv.is offers, ranked by
+resolution. Uses the lowest one if fewer are available.{clr[5]}''')
 
 group.add_argument('-s', '--subtitles',
                     action='store_true',

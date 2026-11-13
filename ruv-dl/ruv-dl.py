@@ -1,5 +1,6 @@
 from arguments import args
 from utils import clr, show_cursor, round_time, graceful_exit
+from hls import is_hls_url, hls_map_args
 import shutil
 import requests
 import os
@@ -114,7 +115,7 @@ def resolution_setting() -> int:
     else:
         resolution = valid_resolutions[0]
 
-    # 0 = lowest, 1 = mid, 2 = highest
+    # 0 = best, 1 = second-best, 2 = third-best
     return resolution - 1
 
 
@@ -248,82 +249,35 @@ def fancy_folder(attributes) -> None:
         file.write(attributes['description'])
 
 
-def get_hls_stream_indices(content_url: str, resolution_index: int):
-    """
-    Use ffprobe to detect available video/audio streams for an HLS URL.
-    resolution_index is 0-based (0,1,2,...) and will be clamped.
-    Returns (video_stream_index, audio_stream_index) or (None, None) on failure.
-    """
-    cmd = [
-        'ffprobe',
-        '-v', 'error',
-        '-show_entries', 'stream=index,codec_type,width,height',
-        '-of', 'csv=p=0',
-        content_url
-    ]
+def build_download_cmd(attributes, map_args_fn=hls_map_args) -> list:
+    """Builds the ffmpeg command used to download the media content."""
+    output_link = attributes['filepath'] + attributes['title'] + attributes['file_format']
+    content_url = attributes['content_url']
 
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True
-    )
-    out, err = process.communicate()
+    if is_hls_url(content_url):
+        map_args, warning = map_args_fn(content_url, attributes['resolution'])
+        if warning:
+            print(f'\n {clr[1]}Warning: {warning}{clr[5]}')
 
-    if process.returncode != 0:
-        return None, None
-
-    videos = []
-    audios = []
-
-    for line in out.strip().splitlines():
-        parts = line.split(',')
-        if len(parts) < 2:
-            continue
-
-        try:
-            idx = int(parts[0])
-        except ValueError:
-            continue
-
-        codec_type = parts[1].strip()
-
-        if codec_type == 'video':
-            width = height = 0
-            if len(parts) >= 4:
-                try:
-                    width = int(parts[2])
-                    height = int(parts[3])
-                except ValueError:
-                    pass
-            pixels = width * height
-            videos.append((idx, pixels))
-
-        elif codec_type == 'audio':
-            audios.append(idx)
-
-    if not videos and not audios:
-        return None, None
-
-    audio_idx = audios[0] if audios else None
-
-    if not videos:
-        return None, audio_idx
-
-    # ffprobe lists HLS streams twice (per program and overall); dedupe by index
-    videos = list(dict(videos).items())
-
-    # Sort videos by resolution (pixels); highest → lowest, so index 0 is best
-    videos.sort(key=lambda x: x[1], reverse=True)
-
-    # Clamp resolution_index
-    if resolution_index < 0:
-        resolution_index = 0
-    if resolution_index >= len(videos):
-        resolution_index = len(videos) - 1
-
-    video_idx = videos[resolution_index][0]
-    return video_idx, audio_idx
+        cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-stats', '-i', content_url]
+        cmd.extend(map_args)
+        cmd.extend([
+            '-c:v', 'copy',
+            '-c:a', 'copy',
+            '-async', '1',
+            output_link
+        ])
+    else:
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-loglevel', 'error',
+            '-stats',
+            '-i', content_url,
+            '-c', 'copy',
+            output_link
+        ]
+    return cmd
 
 
 def download(attributes) -> None:
@@ -341,37 +295,7 @@ def download(attributes) -> None:
 
     # Defines process
     output_title = attributes['title'] + attributes['file_format']
-    output_link = attributes['filepath'] + output_title
-    is_hls = attributes['content_url'].endswith('.m3u8')
-
-    if is_hls:
-        res_idx = attributes['resolution']
-        v_idx, a_idx = get_hls_stream_indices(attributes["content_url"], res_idx)
-
-        cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-stats', '-i', attributes["content_url"]]
-
-        # Only map if we detected specific streams; otherwise let ffmpeg choose defaults
-        if v_idx is not None:
-            cmd.extend(['-map', f'0:{v_idx}'])
-        if a_idx is not None:
-            cmd.extend(['-map', f'0:{a_idx}'])
-
-        cmd.extend([
-            '-c:v', 'copy',
-            '-c:a', 'copy',
-            '-async', '1',
-            output_link
-        ])
-    else:
-        cmd = [
-            'ffmpeg',
-            '-y',
-            '-loglevel', 'error',
-            '-stats',
-            '-i', attributes["content_url"],
-            '-c', 'copy',
-            output_link
-        ]
+    cmd = build_download_cmd(attributes)
 
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,

@@ -44,7 +44,7 @@ Find the link to whatever it is you want to waste your time on and paste the URL
 
 ### Resolution
 
-By default, `ruv-dl` will download the mediafile at the best resolution offered by RÚV - 3600kbps at 1920x1080 (25fps). To download at a worse resolution, use the `-r` argument. 1 is best, 3 is worst.
+By default, `ruv-dl` downloads the highest resolution RÚV offers for the program. To download a smaller file, use the `-r` argument. RÚV streams come in several quality variants. `ruv-dl` ranks the available ones by resolution, highest first: `1` (default) picks the highest, `2` the second-highest and `3` the third-highest. The exact resolutions and bitrates depend on what RÚV provides for each program. If fewer variants exist, the lowest available one is used. `-r` has no effect on audio-only content such as radio.
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -r 2`
 
@@ -79,6 +79,12 @@ Note that depending on your FFmpeg build, you might need to link to `../ffmpeg/b
 When you eventually forget everything you've read here, you can use the `--help` argument.
 
 ![Help argument](/img/help.svg)
+
+## 🧪 Tests
+
+Tests run without network access and use only the standard library. If FFmpeg is installed, a few extra tests generate tiny HLS streams locally and download them for real.
+
+`$ python -m unittest discover -s tests`
 
 ## ⚒️ Project assistance
 
