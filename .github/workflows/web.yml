@@ -39,10 +39,11 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - name: Collect the files the page needs
-        run: |
-          mkdir _site
-          cp web/index.html web/app.js web/ruvdl.js _site/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build the site
+        run: node web/build.mjs _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

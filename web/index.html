@@ -1,131 +1,335 @@
 <!doctype html>
-<html lang="en">
+<html lang="is">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- The page may only talk to RÚV; scripts come from this site and one pinned library -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://*.ruv.is https://*.akamaized.net; img-src 'self' https://*.ruv.is data:; style-src 'self' 'unsafe-inline'; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>ruv-dl web</title>
-<meta name="description" content="Download programs from ruv.is straight from your browser. Nothing to install.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%BA%3C/text%3E%3C/svg%3E">
+<!-- The page may only talk to RÚV (and Cloudflare, to show the visitor's country).
+     Scripts come from this site and one pinned, hash-checked library. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://*.ruv.is https://*.akamaized.net https://1.1.1.1; img-src 'self' https://*.ruv.is data:; style-src 'self' 'unsafe-inline'; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>ruv-dl</title>
+<meta name="description" content="Sæktu efni af ruv.is beint í vafranum.">
+<meta property="og:title" content="ruv-dl">
+<meta property="og:description" content="Sæktu efni af ruv.is beint í vafranum.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<!-- Favicon: the red Sækja button with a download arrow, same hard shadow as the buttons -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg transform='translate(1 1)'%3E%3Crect x='3' y='3' width='27' height='27' rx='6' fill='%23171512'/%3E%3Crect x='1' y='1' width='27' height='27' rx='6' fill='%23e0402a' stroke='%23171512' stroke-width='2'/%3E%3Cpath d='M14.5 7v11m-5-5 5 5 5-5M8.5 22h12' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #f6f5f2; --surface: #ffffff; --text: #1d1d1f; --muted: #6b6b70;
-    --border: #e3e1dc; --accent: #0b5cad; --accent-text: #ffffff;
-    --danger: #b3261e; --ok: #1d7a3e; --track: #e9e7e2;
-    --radius: 12px;
+    --paper: #f2ede3; --card: #fbf8f2; --ink: #171512; --muted: #6d675d;
+    --line: #171512; --soft: #ddd5c6; --rec: #e0402a; --rec-ink: #ffffff;
+    --shadow: #171512; --ok: #1f7a43; --danger: #c0321f; --well: #ebe4d6;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #141416; --surface: #1d1d20; --text: #ececee; --muted: #a0a0a8;
-      --border: #313136; --accent: #5aa2f0; --accent-text: #0b1420;
-      --danger: #ff8a80; --ok: #6fd391; --track: #2a2a2f;
+      --paper: #141311; --card: #1c1a17; --ink: #f1ebdf; --muted: #a39b8d;
+      --line: #f1ebdf; --soft: #3a3631; --rec: #ff5a3c; --rec-ink: #1a0d0a;
+      --shadow: #ff5a3c; --ok: #74d39a; --danger: #ff8a75; --well: #26231f;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #141416; --surface: #1d1d20; --text: #ececee; --muted: #a0a0a8;
-    --border: #313136; --accent: #5aa2f0; --accent-text: #0b1420;
-    --danger: #ff8a80; --ok: #6fd391; --track: #2a2a2f;
+    --paper: #141311; --card: #1c1a17; --ink: #f1ebdf; --muted: #a39b8d;
+    --line: #f1ebdf; --soft: #3a3631; --rec: #ff5a3c; --rec-ink: #1a0d0a;
+    --shadow: #ff5a3c; --ok: #74d39a; --danger: #ff8a75; --well: #26231f;
   }
+
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 var(--sans);
   }
-  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  .lead { color: var(--muted); margin: 0 0 24px; }
-  form.lookup { display: flex; gap: 8px; }
-  input[type="url"], select {
-    font: inherit; color: var(--text); background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 56px; }
+  a { color: inherit; text-decoration-color: var(--rec); text-underline-offset: 3px; }
+  a:hover { text-decoration-style: wavy; }
+  :focus-visible { outline: 3px solid var(--rec); outline-offset: 3px; }
+
+  /* Header: name on the left, GitHub · language on the right */
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+  h1 { font: 800 1.9rem/1 var(--sans); letter-spacing: -.03em; margin: 0; }
+  h1 a { text-decoration: none; border-radius: 4px; }
+  h1 a:hover { text-decoration: underline wavy var(--rec); text-decoration-thickness: 2px; text-underline-offset: 5px; }
+  .nav { display: flex; align-items: center; gap: 10px; font: 600 .8rem/1.2 var(--mono); letter-spacing: .06em; color: var(--muted); }
+  .nav a { padding: 2px 0; border-radius: 4px; text-decoration: underline var(--rec); text-underline-offset: 3px; }
+  .nav a:hover, .nav a:focus-visible { color: var(--ink); text-decoration-style: wavy; }
+  .nav .sep { color: var(--muted); }
+  a.gh { display: inline-flex; align-items: center; gap: 6px; vertical-align: bottom; }
+  a.gh svg { flex: none; }
+  a.gh span { text-decoration: underline var(--rec); text-underline-offset: 3px; }
+  a.gh:hover span, a.gh:focus-visible span { text-decoration-style: wavy; }
+  .lead { font-size: 1.15rem; margin: 18px 0 26px; max-width: 30em; }
+
+  /* Buttons feel like keys on a tape deck */
+  button {
+    font: 700 1rem/1 var(--sans); cursor: pointer; white-space: nowrap;
+    color: var(--rec-ink); background: var(--rec);
+    border: 2px solid var(--line); border-radius: 10px; padding: 13px 20px;
+    box-shadow: 4px 4px 0 var(--shadow);
+    transition: transform .06s, box-shadow .06s;
+  }
+  button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--shadow); }
+  button.secondary { background: var(--card); color: var(--ink); }
+  button.link {
+    background: none; border: 0; box-shadow: none; padding: 2px 0; border-radius: 4px;
+    font: 600 .8rem/1.2 var(--mono); letter-spacing: .06em; color: var(--muted);
+    text-decoration: underline; text-decoration-color: var(--rec); text-underline-offset: 3px;
+  }
+  button.link:hover { color: var(--ink); text-decoration-style: wavy; }
+  button.link:active { transform: none; box-shadow: none; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  /* The slot you feed links into */
+  form.lookup { display: flex; gap: 10px; }
+  #url, select {
+    font: inherit; color: var(--ink); background: var(--card);
+    border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px;
     width: 100%; min-width: 0;
   }
-  button {
-    font: inherit; font-weight: 600; border: 0; border-radius: 8px;
-    padding: 10px 16px; cursor: pointer; background: var(--accent); color: var(--accent-text);
-    white-space: nowrap;
+  #url::placeholder { color: var(--muted); }
+  .conn { margin: 10px 0 0; font: .78rem/1.4 var(--mono); color: var(--muted); }
+
+  /* 01 · 02 · 03 */
+  .tip {
+    margin-top: 24px; padding: 14px 16px; border: 2px dashed var(--soft); border-radius: 12px;
+    font-size: .92rem; color: var(--muted);
   }
-  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  button:disabled { opacity: .5; cursor: default; }
+  .tip p { margin: 0; }
+  .tip-title { font: 700 .7rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--rec); margin-bottom: 8px !important; }
+  .tip-url {
+    margin-top: 10px !important; font: .9rem/1.4 var(--mono); color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .tip-host { white-space: nowrap; }
+  .tip-url mark, .how mark { background: var(--rec); color: var(--rec-ink); padding: 1px 4px; border-radius: 5px; font-weight: 700; }
+  .howto { list-style: none; counter-reset: step; margin: 28px 0 0; padding: 0; display: grid; gap: 8px; }
+  .howto li { counter-increment: step; display: flex; gap: 12px; color: var(--muted); }
+  .howto li::before {
+    content: counter(step, decimal-leading-zero); font: 700 .8rem/1.9 var(--mono); color: var(--rec);
+  }
+
+  /* The tape: picture with scanlines, then the controls */
   .card {
-    margin-top: 24px; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden;
+    margin-top: 28px; background: var(--card); border: 2px solid var(--line);
+    border-radius: 16px; overflow: hidden; box-shadow: 6px 6px 0 var(--shadow);
   }
-  .card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--track); }
-  .card .body { padding: 16px 20px 20px; }
-  .card h2 { margin: 0 0 4px; font-size: 1.25rem; }
-  .card .desc { color: var(--muted); margin: 0 0 16px; font-size: .95rem; }
-  .fields { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
-  .fields label { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
-  .fields .wide { grid-column: 1 / -1; }
-  .check { display: flex; align-items: center; gap: 8px; margin: 14px 0 18px; font-size: .95rem; }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .progress { margin-top: 16px; }
-  .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
-  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-  .status { margin-top: 8px; font-size: .9rem; color: var(--muted); min-height: 1.4em; }
+  .card .media { position: relative; aspect-ratio: 16 / 9; background: var(--well); border-bottom: 2px solid var(--line); }
+  .card .media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .card .media::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .07) 0 1px, transparent 1px 3px);
+  }
+  .card .body { padding: 18px 20px 22px; }
+  .card h2 { font: 800 1.45rem/1.15 var(--sans); letter-spacing: -.02em; margin: 0 0 6px; }
+  .desc { color: var(--muted); margin: 0; font-size: .95rem; }
+  .desc.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .more { margin: 6px 0 0; }
+
+  .fields { display: grid; gap: 14px; margin-top: 20px; }
+  .fields label { display: grid; gap: 6px; }
+  .fields label > span {
+    font: 700 .7rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  }
+  .check { display: flex; align-items: center; gap: 10px; margin: 16px 0 20px; font-size: .95rem; }
+  .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--rec); }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* Tape counter */
+  .progress { margin-top: 20px; }
+  .bar { height: 16px; border: 2px solid var(--line); border-radius: 99px; overflow: hidden; background: var(--well); }
+  .bar > div { height: 100%; width: 0; background: var(--rec); transition: width .25s; }
+  .progress.active .bar > div {
+    background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .28) 0 8px, transparent 8px 16px);
+    background-size: 22.6px 100%; animation: roll .6s linear infinite;
+  }
+  @keyframes roll { to { background-position: 22.6px 0; } }
+  .status { margin-top: 10px; font: .82rem/1.5 var(--mono); color: var(--muted); min-height: 1.5em; }
+  .status:empty { min-height: 0; margin: 0; }
   .status.error { color: var(--danger); }
-  .status.ok { color: var(--ok); }
-  .note { margin-top: 12px; font-size: .85rem; color: var(--muted); }
-  footer { margin-top: 32px; font-size: .85rem; color: var(--muted); }
-  footer a { color: inherit; }
+  .status.ok { color: var(--ok); font-weight: 700; }
+  .note { margin: 12px 0 0; font-size: .85rem; color: var(--muted); }
+  .coffee {
+    margin-top: 16px; padding-top: 14px; border-top: 2px dashed var(--soft);
+    font-size: .92rem; color: var(--ink);
+  }
+  .coffee a { font-weight: 700; }
+
+  /* Footer and the fold-out explanation */
+  footer { margin-top: 44px; font: .78rem/1.6 var(--mono); color: var(--muted); }
+  footer p { margin: 0 0 8px; }
+  footer a { text-decoration: none; }
+  footer a:hover, footer a:focus-visible { text-decoration: underline wavy var(--rec); }
+  .how { margin-top: 18px; border-top: 2px dashed var(--soft); padding-top: 14px; }
+  .how summary { cursor: pointer; width: fit-content; list-style: none; border-radius: 4px; }
+  .how summary::-webkit-details-marker { display: none; }
+  .how summary::before { content: "▸"; color: var(--rec); display: inline-block; margin-right: 8px; transition: transform .15s; }
+  .how[open] summary::before { transform: rotate(90deg); }
+  .how summary:hover { color: var(--ink); }
+  .how > div { font: .9rem/1.65 var(--sans); max-width: 36em; }
+  .how h3 { font: 700 .72rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); margin: 20px 0 4px; }
+  .how p { margin: 0 0 8px; }
+  .how > div > p:first-child { margin-top: 14px; }
+  .how code { font: .8rem var(--mono); background: var(--well); padding: 1px 5px; border-radius: 4px; }
+
   [hidden] { display: none !important; }
   @media (max-width: 520px) {
+    h1 { font-size: 1.6rem; }
     form.lookup { flex-direction: column; }
-    .fields { grid-template-columns: 1fr; }
+    .card { box-shadow: 4px 4px 0 var(--shadow); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
 <body>
 <main>
-  <h1>📺 ruv-dl web</h1>
-  <p class="lead">Download programs from ruv.is straight from your browser. Nothing to install.</p>
+  <header>
+    <h1><a id="home" href="./">ruv-dl</a></h1>
+    <nav class="nav">
+      <a class="gh" href="https://github.com/thrkll/ruv-dl" data-i18n-label="source" aria-label="thrkll/ruv-dl á GitHub">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path id="gh-mark" fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>thrkll/ruv-dl</span>
+      </a>
+      <span class="sep" aria-hidden="true">·</span>
+      <button type="button" class="link" id="lang" lang="en">English</button>
+    </nav>
+  </header>
+  <p class="lead" data-i18n="lead">Sæktu efni af ruv.is beint í vafranum.</p>
 
   <form class="lookup" id="lookup">
-    <input type="url" id="url" required autocomplete="off" spellcheck="false"
-           placeholder="https://www.ruv.is/sjonvarp/spila/…" aria-label="Link to a program on ruv.is">
-    <button type="submit" id="find">Find</button>
+    <input type="text" inputmode="url" id="url" required autocomplete="off" autocapitalize="off" spellcheck="false"
+           data-i18n-placeholder="placeholder" data-i18n-label="urlLabel"
+           placeholder="Límdu hlekk af ruv.is hér" aria-label="Hlekkur á efni á ruv.is">
+    <button type="submit" id="find" data-i18n="find">Finna</button>
   </form>
-  <div class="status" id="lookup-status" role="status"></div>
+  <p class="conn" id="conn" hidden><span data-i18n="connectedFrom">Þú ert tengd/ur frá:</span> <span id="conn-flag"></span></p>
+  <div class="status" id="lookup-status" role="status" aria-live="polite"></div>
+
+  <div id="howto">
+    <ol class="howto">
+      <li data-i18n="step1">Finndu efni á ruv.is og afritaðu hlekkinn.</li>
+      <li data-i18n="step2">Límdu hann hér að ofan og veldu Finna.</li>
+      <li data-i18n="step3">Veldu gæði og ýttu á Sækja.</li>
+    </ol>
+
+  </div>
 
   <section class="card" id="program" hidden>
-    <img id="image" alt="">
+    <div class="media"><img id="image" alt=""></div>
     <div class="body">
       <h2 id="title"></h2>
-      <p class="desc" id="description"></p>
+      <p class="desc clamped" id="description"></p>
+      <button type="button" class="link more" id="more" aria-expanded="false" hidden data-i18n="more">Meira</button>
 
       <div class="fields">
-        <label class="wide" id="episode-field">Episode
+        <label id="episode-field"><span data-i18n="episode">Þáttur</span>
           <select id="episode"></select>
         </label>
-        <label class="wide">Quality
+        <label><span data-i18n="quality">Gæði</span>
           <select id="quality"></select>
         </label>
       </div>
 
-      <label class="check"><input type="checkbox" id="subs"> <span id="subs-label">Icelandic subtitles (.srt)</span></label>
+      <label class="check"><input type="checkbox" id="subs"> <span id="subs-label"></span></label>
 
       <div class="actions">
-        <button id="download" type="button">Download</button>
-        <button id="cancel" type="button" class="secondary" hidden>Cancel</button>
+        <button id="download" type="button" data-i18n="download">Sækja</button>
+        <button id="cancel" type="button" class="secondary" hidden data-i18n="cancel">Hætta við</button>
+        <button id="again" type="button" class="secondary" hidden data-i18n="again">Sækja eitthvað annað</button>
       </div>
 
       <div class="progress" id="progress" hidden>
         <div class="bar"><div id="bar"></div></div>
       </div>
       <div class="status" id="status" role="status" aria-live="polite"></div>
-      <p class="note" id="memory-note" hidden>
-        Your browser keeps the whole file in memory until it is finished.
-        For long programs, Chrome or Edge work better: they save straight to disk.
+      <!-- Shown after a successful download -->
+      <p class="note coffee" id="coffee" hidden>
+        <span data-i18n="support">Vilt þú leggja þitt af mörkum við að halda þessu verkefni gangandi?</span>
+        <a href="https://buymeacoffee.com/thrkll" target="_blank" rel="noopener">Buy me a pylsa 🌭</a>
       </p>
+      <p class="note" id="memory-note" hidden data-i18n="memoryNote"></p>
+      <p class="note" id="ios-note" hidden data-i18n="iosNote"></p>
     </div>
   </section>
 
+  <!-- Shown under the content, only on the domain where the trick works (SHORTCUT_DOMAIN in app.js) -->
+  <aside class="tip" id="tip" hidden>
+    <p class="tip-title" data-i18n="tipTitle">Flýtileið</p>
+    <p data-i18n="tipText">Ertu á ruv.is? Bættu -dl aftan við ruv í vefslóðinni og þú lendir beint hér, allt klappað og klárt:</p>
+    <p class="tip-url" id="tip-url"><span>www.ruv</span><mark>-dl</mark><span>.is/sjonvarp/spila/…</span></p>
+  </aside>
+
+  <noscript><p class="note">Vefútgáfa ruv-dl þarf JavaScript. / The ruv-dl web version needs JavaScript.</p></noscript>
+
   <footer>
-    Everything runs in your browser and the video comes straight from RÚV, so it
-    works wherever ruv.is works for you. Nothing is sent anywhere else.
-    Prototype of <a href="https://github.com/thrkll/ruv-dl">ruv-dl</a>.
+    <details class="how">
+      <summary data-i18n="howItWorks">Hvernig virkar þetta?</summary>
+
+      <div data-lang-block="is" lang="is">
+        <h3>Hvað er ruv-dl?</h3>
+        <p>ruv-dl er opinn hugbúnaður sem hefur enga tengingu við RÚV.</p>
+        <p>Engar vafrakökur eru notaðar og notkun þín er ekki rakin. Allt gerist í vafranum þínum og efnið kemur milliliðalaust frá RÚV. Ein önnur tenging er við Cloudflare (1.1.1.1) til að sýna þér frá hvaða landi þú ert að tengjast.</p>
+
+        <div data-shortcut>
+          <h3>Flýtileið</h3>
+          <p>Ertu á ruv.is? Bættu -dl aftan við ruv í vefslóðinni og þú lendir beint hér, allt klappað og klárt: <code>www.ruv<mark>-dl</mark>.is/sjonvarp/spila/…</code></p>
+        </div>
+
+        <h3>Hvað gerist þegar ég ýti á Sækja?</h3>
+        <p>Vafrinn þinn sækir efnið frá RÚV á sama hátt og spilarinn á ruv.is gerir þegar þú horfir. Munurinn er sá að í stað þess að spila myndefnið setur síðan það saman í eina skrá og vistar hana á tölvunni þinni. Enginn netþjónn á vegum ruv-dl kemur við sögu og efnið fer því ekki um hendur neins annars en RÚV.</p>
+
+        <h3>Af hverju virkar þetta eiginlega bara á Íslandi?</h3>
+        <p>RÚV ræður hvaðan má horfa á efnið. Þar sem niðurhalið fer fram á þinni eigin tengingu gilda sömu reglur og á ruv.is - ef þú getur horft á efnið þar, þá geturðu sótt það hér.</p>
+
+        <h3>Og er þetta bara löglegt?</h3>
+        <p>Já (líklega). Skv. höfundaréttarlögum er einstaklingum heimilt að gera eintök af birtu verki til einkanota, enda sé það ekki gert í fjárhagslegum tilgangi. Ekki má nota slík eintök í neinu öðru skyni. En hvað veit ég? Þetta er á milli þín og RÚV 🤝 Þú berð sjálf/ur ábyrgð á því hvernig þú notar efnið og ef þú ert í vafa er best að kynna sér skilmála RÚV.</p>
+
+        <h3>Hvernig getur vefsíða sótt efni af öðrum vef?</h3>
+        <p>Vafrar banna vefsíðum oft að lesa gögn af öðrum vefjum. Vefþjónn getur þó veitt leyfi fyrir því með svokölluðum CORS-hausum (Cross-Origin Resource Sharing). Þjónar RÚV senda hausinn <code>Access-Control-Allow-Origin</code>, sem leyfir öðrum vefsíðum að lesa efnið, til dæmis svo hægt sé að spila það á öðrum vefsíðum. Ef RÚV breytir þeirri stillingu hættir þessi síða að virka. En pls ekki. 🙏</p>
+
+        <h3>Hvernig er efnið sett saman?</h3>
+        <p>RÚV sendir efni út með HLS (HTTP Live Streaming) og <code>.m3u8</code> playlist sem vísar á hundruð stuttra búta, um sex sekúndur hver, í mismunandi gæðum. ruv-dl les listann, sækir bútana í réttri röð, nokkra í einu, og breytir þeim úr MPEG-TS í MP4 með js-safninu mux.js. Mynd og hljóð eru afrituð óbreytt og ekki endurkóðuð með neinum hætti, svo engin gæði tapast.</p>
+
+        <h3>Hvernig er skráin vistuð?</h3>
+        <p>Í Chrome og Edge (Chromium-vafrar) er skráin skrifuð beint á diskinn á tölvunni þinni í gegnum File System Access API, svo efnið tekur lítið minni í vafranum. Aðrir vafrar (Firefox, Safari o.fl.) safna skránni saman í minni (sem <code>Blob</code>) og henni er svo halað niður eins og hverri annarri skrá.</p>
+
+        <h3>Öryggi</h3>
+        <p>Síðan er bundin öryggisstefnu (Content Security Policy) sem leyfir aðeins tengingar við RÚV (<code>*.ruv.is</code> og <code>*.akamaized.net</code>) og Cloudflare. Föst útgáfa af mux.js er sótt og vafrinn ber það saman við þekkt fingrafar (Subresource Integrity) áður en það fær að keyra. Allur kóðinn er aðgengilegur á <a class="gh" href="https://github.com/thrkll/ruv-dl"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><use href="#gh-mark"/></svg><span>thrkll/ruv-dl</span></a>.</p>
+      </div>
+
+      <div data-lang-block="en" lang="en" hidden>
+        <h3>What is ruv-dl?</h3>
+        <p>ruv-dl is an independent open-source project, not affiliated with RÚV. For personal use only.</p>
+        <p>No cookies are used and nothing is tracked. Everything happens in your browser, and the content comes straight from RÚV with nothing in between. The only other connection is to Cloudflare (1.1.1.1), to show you which country you are connecting from.</p>
+
+        <div data-shortcut>
+          <h3>Shortcut</h3>
+          <p>On ruv.is? Add -dl after ruv in the address and you land right here, ready to download: <code>www.ruv<mark>-dl</mark>.is/sjonvarp/spila/…</code></p>
+        </div>
+
+        <h3>What happens when I press Download?</h3>
+        <p>Your browser fetches the content from RÚV the same way the player on ruv.is does when you watch. The difference is that instead of playing the video, this page joins it into one file and saves it on your computer. No ruv-dl server is involved, so the content never passes through anyone but RÚV.</p>
+
+        <h3>Why does this only work in Iceland, anyway?</h3>
+        <p>RÚV decides where its content can be watched. Because the download runs over your own connection, the same rules apply as on ruv.is - if you can watch it there, then you can download it here.</p>
+
+        <h3>So is this even legal?</h3>
+        <p>Yes (probably). Under copyright law, individuals may make copies of a published work for private use only, as long as it is not done for financial gain. Such copies may not be used for anything else. But what do I know? This is between you and RÚV 🤝 You are responsible for how you use the content, and if in doubt, it is best to check RÚV's terms.</p>
+
+        <h3>How can a website fetch content from another site?</h3>
+        <p>Browsers often stop websites from reading data from other sites. A server can allow it with so-called CORS headers (Cross-Origin Resource Sharing). RÚV's servers send the <code>Access-Control-Allow-Origin</code> header, which lets other websites read the content, for example so it can be played on other websites. If RÚV changes that setting, this page stops working. But please don’t. 🙏</p>
+
+        <h3>How is the file put together?</h3>
+        <p>RÚV streams its content with HLS (HTTP Live Streaming) and a <code>.m3u8</code> playlist that points to hundreds of short segments, about six seconds each, in different qualities. The page reads the playlist, fetches the segments in order, a few at a time, and converts them from MPEG-TS to MP4 with the JS library mux.js. Video and audio are copied as they are and not re-encoded in any way, so no quality is lost.</p>
+
+        <h3>How is the file saved?</h3>
+        <p>In Chrome and Edge the file is then written straight to the disk on your computer through the File System Access API, so the content takes up little memory in the browser. Other browsers (Firefox, Safari etc.) collect the file in memory (as a <code>Blob</code>), which is then downloaded like any other file.</p>
+
+        <h3>Security</h3>
+        <p>The page is bound by a Content Security Policy that only allows connections to RÚV (<code>*.ruv.is</code> and <code>*.akamaized.net</code>) and Cloudflare. A fixed version of mux.js is loaded, and the browser checks it against a known fingerprint (Subresource Integrity) before it may run. All the code is open at <a class="gh" href="https://github.com/thrkll/ruv-dl"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><use href="#gh-mark"/></svg><span>thrkll/ruv-dl</span></a>.</p>
+      </div>
+    </details>
   </footer>
 </main>
 

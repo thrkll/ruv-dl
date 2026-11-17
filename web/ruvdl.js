@@ -6,6 +6,8 @@ export const GRAPHQL_API = 'https://spilari.nyr.ruv.is/gql/';
 
 export class GeoblockError extends Error {}
 export class UnsupportedError extends Error {}
+// Program or episode does not exist (wrong link, or no longer available)
+export class NotFoundError extends Error {}
 
 // ---------- URLs and names ----------
 
@@ -22,6 +24,37 @@ export function parseRuvUrl(url) {
   if (/^\d+$/.test(last)) return { programId: last, episodeId: null };
   if (/^\d+$/.test(prev || '')) return { programId: prev, episodeId: last };
   return { programId: null, episodeId: null };
+}
+
+// The RÚV link a visitor arrived with, if any. Supports
+//   ?url=https://www.ruv.is/sjonvarp/spila/…        (bookmarklets, links)
+//   /sjonvarp/spila/show/123/abc                     (swap the domain for ours)
+//   /https://www.ruv.is/sjonvarp/spila/show/123/abc  (put our domain in front)
+export function ruvUrlFromLocation(href) {
+  let url;
+  try { url = new URL(href); } catch { return null; }
+  const param = url.searchParams.get('url');
+  if (param) return param;
+  const match = url.pathname.match(/\/(?:sjonvarp|utvarp|krakkaruv)\/spila\/.+$/);
+  return match ? `https://www.ruv.is${match[0]}${url.search}` : null;
+}
+
+// Rough file size in bytes: bits per second × seconds / 8
+export function estimateBytes(bandwidth, durationSeconds) {
+  const bw = Number(bandwidth), secs = Number(durationSeconds);
+  return bw > 0 && secs > 0 ? Math.round(bw * secs / 8) : null;
+}
+
+// Country code from Cloudflare's /cdn-cgi/trace output ("loc=IS")
+export function countryFromTrace(text) {
+  const m = String(text || '').match(/^loc=([A-Z]{2})$/m);
+  return m && m[1] !== 'XX' ? m[1] : null;
+}
+
+// 'IS' -> 🇮🇸
+export function flagEmoji(code) {
+  if (!/^[A-Z]{2}$/.test(code || '')) return '';
+  return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
 }
 
 // Same rule as the Python tool: letters, digits, _ . ( ) space and -
@@ -43,14 +76,10 @@ export function fileTitle(program, episode) {
 
 export async function getProgram(programId, episodeId, { fetchFn = fetch } = {}) {
   const res = await fetchFn(`${REST_API}/${programId}/${episodeId}`);
-  if (res.status === 404 || res.status === 422) {
-    throw new Error('Program not found. Check that the link is right.');
-  }
+  if (res.status === 404 || res.status === 422) throw new NotFoundError();
   if (!res.ok) throw new Error(`ruv.is answered with ${res.status}.`);
   const data = await res.json();
-  if (!data.episodes || !data.episodes.length) {
-    throw new Error('This content is not available.');
-  }
+  if (!data.episodes || !data.episodes.length) throw new NotFoundError();
   return data;
 }
 
