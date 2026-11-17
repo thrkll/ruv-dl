@@ -3,8 +3,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseRuvUrl, sanitize, fileTitle, parseMaster, parseMedia, isMediaPlaylist,
-  downloadHls, vttToSrt, getEpisodeList, GeoblockError, UnsupportedError,
+  downloadHls, vttToSrt, getEpisodeList, getProgram, GeoblockError, UnsupportedError,
+  NotFoundError, ruvUrlFromLocation, estimateBytes, countryFromTrace, flagEmoji,
 } from '../ruvdl.js';
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const MASTER = `#EXTM3U
 #EXT-X-VERSION:3
@@ -230,4 +236,64 @@ Hæ. <i>Ég held</i> ég sé næstur.
 Tvær
 línur
 `);
+});
+
+test('ruvUrlFromLocation supports ?url=, swapped domain and prefixed links', () => {
+  const R = 'https://www.ruv.is';
+  const cases = {
+    'https://ruv-dl.is/?url=https%3A%2F%2Fwww.ruv.is%2Fsjonvarp%2Fspila%2Fx%2F1%2Fa': `${R}/sjonvarp/spila/x/1/a`,
+    'https://ruv-dl.is/sjonvarp/spila/blaeja-ii/37230/b31m75': `${R}/sjonvarp/spila/blaeja-ii/37230/b31m75`,
+    'https://ruv-dl.is/sjonvarp/spila/show/37230?ep=b31m75': `${R}/sjonvarp/spila/show/37230?ep=b31m75`,
+    'https://ruv-dl.is/https://www.ruv.is/sjonvarp/spila/x/1/a': `${R}/sjonvarp/spila/x/1/a`,
+    'https://ruv-dl.is/www.ruv.is/utvarp/spila/x/1/a': `${R}/utvarp/spila/x/1/a`,
+    'https://thrkll.github.io/ruv-dl/krakkaruv/spila/x/1/a': `${R}/krakkaruv/spila/x/1/a`,
+    'https://ruv-dl.is/': null,
+    'https://thrkll.github.io/ruv-dl/': null,
+    'https://ruv-dl.is/frettir/innlent': null,
+    'not a url': null,
+  };
+  for (const [href, expected] of Object.entries(cases)) {
+    assert.equal(ruvUrlFromLocation(href), expected, href);
+  }
+});
+
+test('estimateBytes from bandwidth and duration', () => {
+  assert.equal(estimateBytes(3862357, 1680), 811094970);  // ~811 MB for 28 min of 1080p
+  assert.equal(estimateBytes(0, 1680), null);
+  assert.equal(estimateBytes(1000000, undefined), null);
+});
+
+test('countryFromTrace and flagEmoji', () => {
+  const trace = 'fl=123\nh=1.1.1.1\nip=203.0.113.9\nts=1\nloc=IS\ntls=TLSv1.3\n';
+  assert.equal(countryFromTrace(trace), 'IS');
+  assert.equal(countryFromTrace('loc=XX\n'), null);
+  assert.equal(countryFromTrace('nothing'), null);
+  assert.equal(flagEmoji('IS'), '🇮🇸');
+  assert.equal(flagEmoji('NO'), '🇳🇴');
+  assert.equal(flagEmoji('is'), '');
+  assert.equal(flagEmoji(null), '');
+});
+
+test('getProgram reports missing or expired episodes as NotFoundError', async () => {
+  for (const response of [new Response(null, { status: 404 }),
+                          new Response(null, { status: 422 }),
+                          new Response(JSON.stringify({ episodes: [] }))]) {
+    await assert.rejects(getProgram('1', 'a', { fetchFn: async () => response }), NotFoundError);
+  }
+});
+
+test('build.mjs writes the site and a 404.html with absolute script paths', () => {
+  const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'ruvdl-site-'));
+  try {
+    execFileSync(process.execPath, [path.join(web, 'build.mjs'), out],
+                 { env: { ...process.env, BASE_PATH: '/ruv-dl/' } });
+    assert.deepEqual(fs.readdirSync(out).sort(),
+                     ['404.html', 'app.js', 'index.html', 'ruvdl.js']);
+    const page = fs.readFileSync(path.join(out, '404.html'), 'utf8');
+    assert.match(page, /<script type="module" src="\/ruv-dl\/app\.js"><\/script>/);
+    assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /src="app\.js"/);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
 });

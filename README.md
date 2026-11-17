@@ -1,15 +1,15 @@
-# 📺 ruv-dl
+# <img src="img/logo.svg" width="36" height="36" align="absmiddle" alt=""> ruv-dl
 
-[![Python](https://img.shields.io/badge/Python_3-3776AB?logo=python&logoColor=white)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python_3-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/thrkll/ruv-dl)]()
 
 ### Download media content from ruv.is
 
-`ruv-dl` is a simple Python command-line  tool to download media content from [RÚV](https://ruv.is).
+`ruv-dl` is a simple Python command-line tool to download media content from [RÚV](https://ruv.is).
 
 > **🌐 No Python? Use the web version: [thrkll.github.io/ruv-dl](https://thrkll.github.io/ruv-dl/)**
-> Paste a ruv.is link and download. Nothing to install. [More below](#-web-version-experimental).
+> Paste a ruv.is link and download. Nothing to install. [More below](#-web-version).
 
 ## ✨ Features
 
@@ -21,20 +21,19 @@
 
 ![ruv-dl download](/img/download.svg)
 
-## 🌐 Web version (experimental)
+## 🌐 Web version
 
 ### 👉 [thrkll.github.io/ruv-dl](https://thrkll.github.io/ruv-dl/)
 
-Don't want to install anything? Open the link above, paste a ruv.is link, pick an episode and quality, and download an `.mp4` with subtitles. It runs entirely in your browser: nothing is installed, and the video comes straight from RÚV to your computer.
+Can't be bothered with Python? Paste a ruv.is link into the web version and download it straight from your browser. Nothing to install, no cookies, no tracking, and the video goes straight from RÚV to your computer. Like ruv.is itself, it only works from Iceland.
 
-- Works best in Chrome and Edge, which save straight to disk. Firefox and Safari keep the file in memory until it is finished, which is fine for single episodes.
-- The page may only contact RÚV's servers (enforced by a Content Security Policy). Its one library, [mux.js](https://github.com/videojs/mux.js), is pinned and checked with a hash.
-- It relies on RÚV allowing other websites to read its streams, which RÚV could change at any time.
+It works best in Chrome and Edge. Other browsers keep the whole file in memory until it's done, which is fine unless it's something really long.
 
-The source is in [`web/`](web/). To run this locally:
+Shortcut: when watching or listening to something on ruv.is, replace `www.ruv.is` in the address with `thrkll.github.io/ruv-dl` and you land right on the download.
 
-`$ python -m http.server 8000` and open http://localhost:8000
+It relies on RÚV letting other websites read its streams, so it might stop working any day. The source lives in [`web/`](web/). To run it locally:
 
+`$ python -m http.server 8000 --directory web` and open http://localhost:8000
 
 ## ⚡️ Installation
 
@@ -79,11 +78,11 @@ To download more than one episode, add `-e` with the episodes you want. Any epis
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -s`
 
-Episodes are saved as `Show - Episode title`. With `-f`, they all go in one folder named after the show. Running the same command again later adds new episodes to that folder and asks before overwriting ones you already have. Add `-n` (`--no`) to skip existing episodes without being asked, or `-y` (`--yes`) to overwrite them all. This is handy for picking up new episodes:
+Episodes are saved as `Series - Episode title`. With `-f`, they all go in one folder named after the series. Running the same command again later adds new episodes to that folder and asks before overwriting ones you already have. Add `-n` (`--no`) to skip existing episodes without being asked, or `-y` (`--yes`) to overwrite them all. This is handy for picking up new episodes:
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -f -n`
 
-The same flags answer the overwrite question for single downloads too. With `-o`, the name you give replaces the show name.
+The same flags answer the overwrite question for single downloads too. With `-o`, the name you give replaces the series name.
 
 ### Folder structure
 
@@ -108,9 +107,9 @@ Blæja/
 
 `$ python ruv-dl.py -i https://ruv.is/sjonvarp/spila/sample/30726/950qj1 -e all -m -s -n`
 
-RÚV publishes each season as a separate program with a Roman numeral at the end (Blæja **II**), so `ruv-dl` reads that numeral as the season number. Every season then lands in the same show folder. Programs without episodes, such as films, get their own folder: `Film/Film.mp4`. Use `-o` to choose a different show name. `-m` replaces `-f`, and existing folders are never deleted.
+RÚV publishes each season as a separate program with a Roman numeral at the end (Blæja **II**), so `ruv-dl` reads that numeral as the season number. Every season then lands in the same series folder. Programs without episodes, such as films, get their own folder: `Film/Film.mp4`. Use `-o` to choose a different series name. `-m` replaces `-f`, and existing folders are never deleted.
 
-Every download, with or without `-m`, has the title, show, episode number, description and air date embedded in the file itself.
+Every download, with or without `-m`, has the title, series name, episode number, description and air date embedded in the file itself.
 
 ### Subtitles
 
@@ -146,7 +145,7 @@ Tests run without network access and use only the standard library. If FFmpeg is
 
 ## ⚒️ Project assistance
 
-Please raise an issue if you have a feature request or run into trouble (not unlikely given frequent changes at ruv.is.) Feel free to contribute and make pull requests. Mark the project with a star ⭐ if you like it.
+Please raise an issue if you have a feature request or run into trouble (not unlikely given frequent changes at ruv.is.) Feel free to contribute and make pull requests. Mark the project with a star ⭐ if you like it, or [buy me a pylsa 🌭](https://buymeacoffee.com/thrkll).
 
 ## 🚚 Versions
 
