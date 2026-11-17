@@ -288,8 +288,10 @@ test('build.mjs writes the site and a 404.html with absolute script paths', () =
   try {
     execFileSync(process.execPath, [path.join(web, 'build.mjs'), out],
                  { env: { ...process.env, BASE_PATH: '/ruv-dl/' } });
+    // CNAME (the custom domain) is copied along when the repository has one
+    const cname = fs.existsSync(path.join(web, 'CNAME')) ? ['CNAME'] : [];
     assert.deepEqual(fs.readdirSync(out).sort(),
-                     ['404.html', 'app.js', 'index.html', 'ruvdl.js']);
+                     ['404.html', ...cname, 'app.js', 'index.html', 'ruvdl.js']);
     const page = fs.readFileSync(path.join(out, '404.html'), 'utf8');
     assert.match(page, /<script type="module" src="\/ruv-dl\/app\.js"><\/script>/);
     assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /src="app\.js"/);
