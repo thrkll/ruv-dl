@@ -14,7 +14,7 @@ const hasCname = fs.existsSync(path.join(here, 'CNAME'));
 const base = process.env.BASE_PATH || (hasCname ? '/' : '/ruv-dl/');
 
 fs.mkdirSync(out, { recursive: true });
-for (const file of ['index.html', 'app.js', 'ruvdl.js', ...(hasCname ? ['CNAME'] : [])]) {
+for (const file of ['index.html', 'app.js', 'ruvdl.js', 'mp4.js', ...(hasCname ? ['CNAME'] : [])]) {
   fs.copyFileSync(path.join(here, file), path.join(out, file));
 }
 

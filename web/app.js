@@ -43,6 +43,7 @@ const TEXT = {
     errUnreachable: 'Náði ekki sambandi við RÚV. Ef þetta heldur áfram gæti RÚV hafa lokað á vefútgáfuna, en Python-útgáfan af ruv-dl virkar þá enn.',
     errUnreachableLink: 'Python-útgáfan',
     errUnsupported: 'Ekki er hægt að sækja þetta efni (það er dulkóðað eða á óþekktu sniði).',
+    errUnsupportedDetail: 'Ekki er hægt að sækja þetta efni: {message}',
     errGeneric: 'Eitthvað fór úrskeiðis: {message}',
     howItWorks: 'Hvernig virkar þetta?',
     source: 'thrkll/ruv-dl á GitHub',
@@ -79,6 +80,7 @@ const TEXT = {
     errUnreachable: 'Could not reach RÚV. If this keeps happening, RÚV may have blocked the web version, but the Python version of ruv-dl still works.',
     errUnreachableLink: 'Python version',
     errUnsupported: 'This content cannot be downloaded (it is encrypted or in an unknown format).',
+    errUnsupportedDetail: 'This content cannot be downloaded: {message}',
     errGeneric: 'Something went wrong: {message}',
     howItWorks: 'How does this work?',
     source: 'thrkll/ruv-dl on GitHub',
@@ -161,7 +163,11 @@ function renderStatus(el) {
 function showError(el, err) {
   if (err instanceof GeoblockError) return setStatus(el, 'errGeoblock', {}, 'error');
   if (err instanceof NotFoundError) return setStatus(el, 'errNotFound', {}, 'error');
-  if (err instanceof UnsupportedError) return setStatus(el, 'errUnsupported', {}, 'error');
+  if (err instanceof UnsupportedError) {
+    // mp4.js and ruvdl.js say why (gap, format change, encryption); keep that for bug reports
+    return err.message ? setStatus(el, 'errUnsupportedDetail', { message: err.message }, 'error')
+      : setStatus(el, 'errUnsupported', {}, 'error');
+  }
   if (err instanceof TypeError) {
     // fetch() fails with a TypeError when offline or when RÚV blocks other sites
     return setStatus(el, navigator.onLine === false ? 'errOffline' : 'errUnreachable', {}, 'error');
@@ -484,7 +490,7 @@ els.download.addEventListener('click', async () => {
       await downloadDirect(variant.url, writer.write, onProgress, state.abort.signal);
     } else {
       await downloadHls(variant.url, {
-        muxjs: window.muxjs, write: writer.write, onProgress, signal: state.abort.signal,
+        audioUrl: variant.audio, muxjs: window.muxjs, write: writer.write, onProgress, signal: state.abort.signal,
       });
     }
     await writer.finish();
