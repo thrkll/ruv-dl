@@ -2,7 +2,10 @@
 <html lang="is">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2ede3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
 <!-- The page may only talk to RÚV (and Cloudflare, to show the visitor's country).
      Scripts come from this site and one pinned, hash-checked library. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://*.ruv.is https://*.akamaized.net https://1.1.1.1; img-src 'self' https://*.ruv.is data:; style-src 'self' 'unsafe-inline'; media-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
@@ -35,14 +38,26 @@
     --shadow: #ff5a3c; --ok: #74d39a; --danger: #ff8a75; --well: #26231f;
   }
 
+  :root { color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     margin: 0; background: var(--paper); color: var(--ink);
     font: 16px/1.5 var(--sans);
+    -webkit-tap-highlight-color: transparent;
   }
-  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 56px; }
+  /* Respect notches / rounded corners (viewport-fit=cover) */
+  main {
+    max-width: 640px; margin: 0 auto;
+    padding: 32px max(16px, env(safe-area-inset-right)) max(56px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
   a { color: inherit; text-decoration-color: var(--rec); text-underline-offset: 3px; }
-  a:hover { text-decoration-style: wavy; }
+  button, summary, a, label, select { touch-action: manipulation; }
+  /* Hover effects only where there is a real pointer, so they don't stick after a tap */
+  @media (hover: hover) { a:hover { text-decoration-style: wavy; } }
   :focus-visible { outline: 3px solid var(--rec); outline-offset: 3px; }
 
   /* Header: name on the left, GitHub · language on the right */
@@ -152,6 +167,7 @@
     margin-top: 16px; padding-top: 14px; border-top: 2px dashed var(--soft);
     font-size: .92rem; color: var(--ink);
   }
+  .coffee .pylsa { display: inline-block; margin-top: 6px; font-size: 1rem; }
   .coffee a { font-weight: 700; }
 
   /* Footer and the fold-out explanation */
@@ -172,10 +188,53 @@
   .how code { font: .8rem var(--mono); background: var(--well); padding: 1px 5px; border-radius: 4px; }
 
   [hidden] { display: none !important; }
+
+  /* Show loaded: they already know what the page does and where they connect
+     from, so drop the intro line and the country line */
+  main:has(#howto[hidden]) :is(.lead, .conn) { display: none; }
+  main:has(#howto[hidden]) form.lookup { margin-top: 22px; }
+
+  /* Landing view: the intro line as a big headline (spacing for phones is set below) */
+  main:has(#howto:not([hidden])) .lead {
+    font: 800 clamp(1.75rem, 8vw, 2.6rem)/1.1 var(--sans); letter-spacing: -.03em;
+    margin: clamp(72px, 12vh, 128px) 0 36px; max-width: none; text-wrap: balance;
+  }
+  @media (min-width: 521px) {
+    main:has(#howto:not([hidden])) .howto { margin-top: 44px; gap: 12px; }
+  }
+  /* Phones: use the full screen height, bigger tap targets (≥44px), and keep the
+     hard shadows inside the gutter so nothing sticks out past the right edge. */
   @media (max-width: 520px) {
-    h1 { font-size: 1.6rem; }
-    form.lookup { flex-direction: column; }
-    .card { box-shadow: 4px 4px 0 var(--shadow); }
+    main { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding-top: max(24px, env(safe-area-inset-top)); }
+    footer { margin-top: auto; padding-top: 44px; }
+
+    header { gap: 4px 12px; }
+    .nav { font-size: .85rem; gap: 6px; }
+    .nav a, .nav button.link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+    .lead { font-size: 1.2rem; line-height: 1.4; margin: 14px 0 24px; }
+
+    form.lookup { flex-direction: column; gap: 14px; padding-right: 4px; }
+    #url, select { min-height: 52px; padding: 14px 16px; }
+    form.lookup button { min-height: 54px; font-size: 1.1rem; }
+
+    .conn { font-size: .82rem; }
+
+    /* Landing view (nothing looked up yet): a big headline, and spacing that grows
+       with the screen height so the page fills the phone instead of leaving a gap. */
+    main:has(#howto:not([hidden])) .lead { margin: clamp(32px, 11dvh, 120px) 0 clamp(22px, 4dvh, 36px); }
+
+    .howto { margin-top: clamp(36px, 10dvh, 104px); gap: 14px; font-size: 1.05rem; }
+    .card { box-shadow: 4px 4px 0 var(--shadow); margin-right: 4px; }
+    .card .body { padding: 18px 16px 22px; }
+    .actions { padding-right: 4px; }
+    .actions button { flex: 1 1 100%; min-height: 52px; }
+    .check { min-height: 44px; margin: 12px 0 16px; }
+    .check input { width: 24px; height: 24px; }
+    button.link.more { min-height: 44px; }
+
+    .tip { margin-right: 4px; }
+    footer { font-size: .85rem; }
+    .how summary { display: flex; align-items: center; min-height: 44px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -198,9 +257,9 @@
   <p class="lead" data-i18n="lead">Sæktu efni af ruv.is beint í vafranum.</p>
 
   <form class="lookup" id="lookup">
-    <input type="text" inputmode="url" id="url" required autocomplete="off" autocapitalize="off" spellcheck="false"
+    <input type="text" inputmode="url" enterkeyhint="go" id="url" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
            data-i18n-placeholder="placeholder" data-i18n-label="urlLabel"
-           placeholder="Límdu hlekk af ruv.is hér" aria-label="Hlekkur á efni á ruv.is">
+           placeholder="https://www.ruv.is/sjonvarp/spila/..." aria-label="Hlekkur á efni á ruv.is">
     <button type="submit" id="find" data-i18n="find">Finna</button>
   </form>
   <p class="conn" id="conn" hidden><span data-i18n="connectedFrom">Þú ert tengd/ur frá:</span> <span id="conn-flag"></span></p>
@@ -245,8 +304,8 @@
       <div class="status" id="status" role="status" aria-live="polite"></div>
       <!-- Shown after a successful download -->
       <p class="note coffee" id="coffee" hidden>
-        <span data-i18n="support">Vilt þú leggja þitt af mörkum við að halda þessu verkefni gangandi?</span>
-        <a href="https://buymeacoffee.com/thrkll" target="_blank" rel="noopener">Buy me a pylsa 🌭</a>
+        <span data-i18n="support">Viltu að þessi síða verði hér áfram? Það veltur á mínum frítíma og þínum stuðningi.</span><br>
+        <span class="pylsa"><a href="https://buymeacoffee.com/thrkll" target="_blank" rel="noopener">Buy me a pylsa</a> 🌭</span>
       </p>
       <p class="note" id="memory-note" hidden data-i18n="memoryNote"></p>
       <p class="note" id="ios-note" hidden data-i18n="iosNote"></p>

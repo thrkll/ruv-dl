@@ -14,7 +14,7 @@ const SHORTCUT_DOMAIN = 'ruv-dl.is';
 const TEXT = {
   is: {
     lead: 'Sæktu efni af ruv.is beint í vafranum.',
-    placeholder: 'Límdu hlekk af ruv.is hér',
+    placeholder: 'https://www.ruv.is/sjonvarp/spila/...',
     urlLabel: 'Hlekkur á efni á ruv.is',
     find: 'Finna',
     step1: 'Finndu efni á ruv.is og afritaðu hlekkinn.',
@@ -23,7 +23,7 @@ const TEXT = {
     tipTitle: 'Flýtileið',
     tipText: 'Ertu á ruv.is? Bættu -dl aftan við ruv í vefslóðinni og þú lendir beint hér, allt klappað og klárt:',
     connectedFrom: 'Þú ert tengd/ur frá:',
-    support: 'Vilt þú leggja eitthvað af mörkum við að halda síðunni gangandi?',
+    support: 'Viltu að þessi síða verði hér áfram? Það veltur á mínum frítíma og þínum stuðningi.',
     more: 'Meira', less: 'Minna',
     episode: 'Þáttur', quality: 'Gæði', best: 'mestu gæði', about: 'u.þ.b. {size}',
     subs: 'Íslenskur texti (.srt)', noSubs: 'Enginn texti til fyrir þetta efni',
@@ -49,7 +49,7 @@ const TEXT = {
     switchTo: 'English',
   },
   en: {
-    lead: 'Download programs from ruv.is straight from your browser.',
+    lead: 'Download content from ruv.is straight from your browser.',
     placeholder: 'Paste a link from ruv.is here',
     urlLabel: 'Link to a program on ruv.is',
     find: 'Find',
