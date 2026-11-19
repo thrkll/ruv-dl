@@ -494,23 +494,29 @@ els.download.addEventListener('click', async () => {
       });
     }
     await writer.finish();
+  } catch (err) {
+    await writer.abort();
+    if (state.abort.signal.aborted) setStatus(els.status, 'cancelled');
+    else showError(els.status, err);
+    setBusy(false);
+    return;
+  }
 
+  // The video is saved, so from here on the download counts as finished
+  try {
     if (els.subs.checked && state.episode.subtitles_url) {
       setStatus(els.status, 'gettingSubs');
       const vtt = await (await fetch(state.episode.subtitles_url)).text();
       saveBlob(new Blob([vtt.includes('-->') ? vttToSrt(vtt) : vtt], { type: 'text/plain' }), `${name}.srt`);
     }
-
-    els.bar.style.width = '100%';
     setStatus(els.status, 'done', { file: filename }, 'ok');
+  } catch (err) {
+    showError(els.status, err);  // only the subtitles failed
+  } finally {
+    els.bar.style.width = '100%';
     state.done = true;  // hide Sækja so the only way on is "Sækja eitthvað annað"
     els.again.hidden = false;
     els.coffee.hidden = false;  // the best moment to ask
-  } catch (err) {
-    await writer.abort();
-    if (state.abort.signal.aborted) setStatus(els.status, 'cancelled');
-    else showError(els.status, err);
-  } finally {
     setBusy(false);
   }
 });
@@ -560,6 +566,7 @@ function setBusy(busy) {
   els.url.disabled = busy;
   els.progress.hidden = false;
   els.memoryNote.hidden = !busy || canSaveToDisk;
+  els.iosNote.hidden = !isIOS || state.done;
   if (busy) els.bar.style.width = '0';
 }
 
@@ -570,6 +577,7 @@ function resetProgress() {
   els.bar.style.width = '0';
   els.again.hidden = true;
   els.coffee.hidden = true;
+  els.iosNote.hidden = !isIOS;
   setStatus(els.status, null);
 }
 
