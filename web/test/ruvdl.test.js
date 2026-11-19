@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseRuvUrl, sanitize, fileTitle, parseMaster, parseMedia, isMediaPlaylist,
-  downloadHls, parseVtt, splitSeason, fileTags, getFileExtras, getEpisodeList, numbersAreUnique, getProgram, GeoblockError, UnsupportedError,
+  downloadHls, parseVtt, splitSeason, fileTags, getFileExtras, getEpisodeList, numbersAreUnique, cuesToSrt, getProgram, GeoblockError, UnsupportedError,
   NotFoundError, ruvUrlFromLocation, estimateBytes, countryFromTrace, flagEmoji,
 } from '../ruvdl.js';
 import { makeInit, makeFragment, readMp4, mp4box, cat } from './fixtures.js';
@@ -410,6 +410,22 @@ línur
     { start: 2, end: 3.08, text: 'Hæ. Ég held ég sé næstur & svo.' },
     { start: 65.5, end: 67.25, text: 'Tvær\nlínur' },
   ]);
+});
+
+test('cuesToSrt numbers the cues and writes SRT timings', () => {
+  assert.equal(cuesToSrt([
+    { start: 2, end: 3.08, text: 'Hæ.' },
+    { start: 3725.5, end: 3727.0004, text: 'Tvær\nlínur' },
+  ]), `1
+00:00:02,000 --> 00:00:03,080
+Hæ.
+
+2
+01:02:05,500 --> 01:02:07,000
+Tvær
+línur
+`);
+  assert.equal(cuesToSrt([]), '');
 });
 
 test('splitSeason reads a Roman numeral at the end of the title', () => {

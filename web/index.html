@@ -192,7 +192,45 @@
   .episodes-expiry { margin: 8px 0 0; font: .78rem/1.5 var(--mono); color: var(--muted); }
   .episodes-expiry.soon { color: var(--danger); font-weight: 700; }
 
-  .subs-note { margin: 14px 0 0; font-size: .9rem; color: var(--muted); }
+  /* Fleiri stillingar: folded away, for the few who want them */
+  .more-settings summary {
+    cursor: pointer; width: fit-content; list-style: none; border-radius: 4px;
+    font: 600 .8rem/1.2 var(--mono); letter-spacing: .06em; color: var(--muted);
+  }
+  .more-settings summary::-webkit-details-marker { display: none; }
+  .more-settings summary::before { content: "▸"; color: var(--rec); display: inline-block; margin-right: 8px; transition: transform .15s; }
+  .more-settings[open] summary::before { transform: rotate(90deg); }
+  @media (hover: hover) { .more-settings summary:hover { color: var(--ink); } }
+  .check-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .check { display: flex; align-items: center; gap: 10px; font-size: .95rem; cursor: pointer; }
+  .check input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--rec); }
+  .check:has(input:disabled) { opacity: .45; cursor: default; }
+  /* A small "?" next to a setting; hovering (or focusing) it shows a bubble above it */
+  .hint { position: relative; display: inline-flex; }
+  button.hint-mark {
+    position: relative; display: inline-grid; place-items: center;
+    width: 17px; height: 17px; padding: 0; border-radius: 50%;
+    border: 1.5px solid currentColor; background: none; box-shadow: none; color: var(--muted);
+    font: 700 .68rem/1 var(--sans); cursor: help; opacity: .75;
+  }
+  button.hint-mark::after { content: ""; position: absolute; inset: -13px; }  /* a 44px tap target */
+  /* With a mouse it can be smaller still */
+  @media (hover: hover) and (pointer: fine) {
+    button.hint-mark { width: 13px; height: 13px; border-width: 1px; font-size: .56rem; }
+    button.hint-mark::after { inset: -6px; }
+  }
+  button.hint-mark:active:not(:disabled) { transform: none; box-shadow: none; }
+  .hint-text {
+    position: absolute; bottom: calc(100% + 9px); right: -12px; z-index: 5;
+    width: max-content; max-width: 240px; padding: 7px 10px; border-radius: 8px;
+    background: var(--ink); color: var(--paper); font: .78rem/1.4 var(--sans);
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s, visibility .12s;
+  }
+  /* The bubble's tail, pointing down at the "?" */
+  .hint-text::after { content: ""; position: absolute; top: 100%; right: 15px; border: 5px solid transparent; border-top-color: var(--ink); }
+  .hint:hover .hint-text, .hint-mark:focus + .hint-text { opacity: 1; visibility: visible; }
+  .hint:hover .hint-mark, .hint-mark:focus { opacity: 1; color: var(--ink); }
+
   .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
 
   /* Tape counter */
@@ -276,6 +314,10 @@
     .actions button { flex: 1 1 100%; min-height: 52px; }
     button.link.more { min-height: 44px; }
     .pick-item, .pick-current { min-height: 52px; padding: 8px 12px; }
+    .more-settings summary { display: flex; align-items: center; min-height: 44px; }
+    .check-row { margin-top: 4px; }
+    .check { min-height: 44px; }
+    .check input { width: 24px; height: 24px; }
 
     .tip { margin-right: 4px; }
     footer { font-size: .85rem; }
@@ -344,9 +386,18 @@
           </button>
           <div class="pick-list" id="qualities" hidden></div>
         </fieldset>
+        <details class="more-settings">
+          <summary data-i18n="moreSettings">Fleiri stillingar</summary>
+          <div class="check-row">
+            <label class="check"><input type="checkbox" id="srt"> <span data-i18n="srtSetting">Vista undirtexta sem .srt skrá</span></label>
+            <span class="hint">
+              <button type="button" class="hint-mark" aria-describedby="srt-note" data-i18n-label="srtInfo" aria-label="Nánar">?</button>
+              <span class="hint-text" id="srt-note" role="tooltip" data-i18n="srtNote"></span>
+            </span>
+          </div>
+        </details>
       </div>
 
-      <p class="subs-note" id="subs-note" hidden data-i18n="subsIncluded">Íslenskur texti fylgir með í skránni.</p>
 
       <div class="actions">
         <button id="download" type="button" data-i18n="download">Sækja</button>
@@ -407,7 +458,7 @@
         <p>RÚV sendir efni út með HLS (HTTP Live Streaming) og <code>.m3u8</code> playlist sem vísar á hundruð stuttra búta, um sex sekúndur hver, í mismunandi gæðum. ruv-dl les listann, sækir bútana í réttri röð, nokkra í einu, og breytir þeim úr MPEG-TS í MP4 með js-safninu mux.js og sérsmíðuðum muxing kóða. Mynd og hljóð eru afrituð óbreytt og ekki endurkóðuð með neinum hætti, svo engin gæði tapast.</p>
 
         <h3>Hvað fylgir með í skránni?</h3>
-        <p>Íslenski textinn fer inn í skrána sjálfa sem sérstök textarás, svo þú þarft ekki að halda utan um aukaskrá. Í flestum spilurum kveikirðu á honum í valmyndinni fyrir texta, t.d. <i>Subtitle → Sub Track</i> í VLC eða talblöðrutáknið á iPhone, iPad og Mac. Plex og Jellyfin finna hann sjálf.</p>
+        <p>Íslenski textinn fer inn í skrána sjálfa sem sérstök textarás, svo þú þarft ekki að halda utan um aukaskrá. Í flestum spilurum kveikirðu á honum í valmyndinni fyrir texta, t.d. <i>Subtitle → Sub Track</i> í VLC eða talblöðrutáknið á iPhone, iPad og Mac. Plex og Jellyfin finna hann sjálf. Ef þú vilt textann líka sem sérstaka .srt-skrá geturðu hakað við það undir <i>Fleiri stillingar</i>.</p>
         <p>Titill, þáttaröð, þáttanúmer, lýsing, sýningardagur, flokkur og mynd af efninu eru líka geymd í skránni. Þær upplýsingar sjást t.d. í eiginleikum skrárinnar í Windows, í Finder á Mac og í spilurum eins og VLC, Plex og Apple TV.</p>
 
         <h3>Hvernig er skráin vistuð?</h3>
@@ -443,7 +494,7 @@
         <p>RÚV streams its content with HLS (HTTP Live Streaming) and a <code>.m3u8</code> playlist that points to hundreds of short segments, about six seconds each, in different qualities. The page reads the playlist, fetches the segments in order, a few at a time, and converts them from MPEG-TS to MP4 with the JS library mux.js and custom-built muxing code. Video and audio are copied as they are and not re-encoded in any way, so no quality is lost.</p>
 
         <h3>What's in the file?</h3>
-        <p>The Icelandic subtitles go into the file itself as a separate subtitle track, so there is no extra file to keep track of. In most players you turn them on in the subtitle menu, e.g. <i>Subtitle → Sub Track</i> in VLC or the speech bubble icon on iPhone, iPad and Mac. Plex and Jellyfin pick them up on their own.</p>
+        <p>The Icelandic subtitles go into the file itself as a separate subtitle track, so there is no extra file to keep track of. In most players you turn them on in the subtitle menu, e.g. <i>Subtitle → Sub Track</i> in VLC or the speech bubble icon on iPhone, iPad and Mac. Plex and Jellyfin pick them up on their own. If you also want them as a separate .srt file, tick that under <i>More settings</i>.</p>
         <p>The title, series, episode number, description, air date, genre and a picture of the program are stored in the file too. They show up in places like the file's properties in Windows, Finder on a Mac, and players such as VLC, Plex and Apple TV.</p>
 
         <h3>How is the file saved?</h3>

@@ -363,6 +363,16 @@ export function parseVtt(vtt) {
   return cues;
 }
 
+// [{ start, end, text }] (times in seconds) -> SubRip (.srt) text
+export function cuesToSrt(cues) {
+  const pad = (n, width = 2) => String(n).padStart(width, '0');
+  const time = seconds => {
+    const ms = Math.round(seconds * 1000);
+    return `${pad(Math.floor(ms / 3_600_000))}:${pad(Math.floor(ms / 60_000) % 60)}:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
+  };
+  return cues.map((c, i) => `${i + 1}\n${time(c.start)} --> ${time(c.end)}\n${c.text}\n`).join('\n');
+}
+
 // ---------- File tags ----------
 
 const ROMAN = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];

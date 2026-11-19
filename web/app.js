@@ -2,7 +2,7 @@
 import {
   parseRuvUrl, ruvUrlFromLocation, getProgram, getEpisodeList, parseMaster,
   isMediaPlaylist, downloadHls, getFileExtras, fileTitle, estimateBytes,
-  countryFromTrace, flagEmoji, GeoblockError, UnsupportedError, NotFoundError, numbersAreUnique,
+  countryFromTrace, flagEmoji, GeoblockError, UnsupportedError, NotFoundError, numbersAreUnique, cuesToSrt,
 } from './ruvdl.js';
 
 const REPO_URL = 'https://github.com/thrkll/ruv-dl';
@@ -26,7 +26,9 @@ const TEXT = {
     support: 'Viltu að þessi síða verði hér áfram? Það veltur á mínum frítíma og þínum stuðningi.',
     more: 'Meira', less: 'Minna',
     episode: 'Þáttur', quality: 'Gæði', best: 'mestu gæði', about: 'u.þ.b. {size}',
-    subsIncluded: 'Íslenskur texti fylgir með í skránni.',
+    moreSettings: 'Fleiri stillingar', srtSetting: 'Vista undirtexta sem .srt skrá', srtInfo: 'Nánar',
+    srtNote: 'Textinn er innbyggður í myndskrána. Hakaðu við ef þú vilt líka fá sérstaka textaskrá.',
+    srtNoteAsks: 'Textinn er innbyggður í myndskrána. Hakaðu við ef þú vilt líka fá sérstaka textaskrá. Vafrinn spyr hvar eigi að vista hana.',
     minutes: '{m} mín', hours: '{h} klst', hoursMinutes: '{h} klst {m} mín',
     availableUntil: 'til {date}', expiresIn: 'rennur út eftir {n} daga', expiresTomorrow: 'rennur út á morgun', expiresToday: 'rennur út í dag',
     allAvailableUntil: 'Allir þættirnir eru aðgengilegir til {date}.',
@@ -69,7 +71,9 @@ const TEXT = {
     support: 'Want to help keep this project going?',
     more: 'More', less: 'Less',
     episode: 'Episode', quality: 'Quality', best: 'best', about: 'about {size}',
-    subsIncluded: 'Icelandic subtitles are included in the file.',
+    moreSettings: 'More settings', srtSetting: 'Save subtitles as an .srt file', srtInfo: 'More info',
+    srtNote: 'Subtitles are always built into the video file. Only tick this if you also want them as a separate file.',
+    srtNoteAsks: 'Subtitles are always built into the video file. Only tick this if you also want them as a separate file. Your browser will then ask where to save it.',
     minutes: '{m} min', hours: '{h} h', hoursMinutes: '{h} h {m} min',
     availableUntil: 'until {date}', expiresIn: 'leaves in {n} days', expiresTomorrow: 'leaves tomorrow', expiresToday: 'leaves today',
     allAvailableUntil: 'All episodes are available until {date}.',
@@ -119,7 +123,7 @@ const els = {
   more: $('more'),
   episodeField: $('episode-field'), episodes: $('episodes'), episodesExpiry: $('episodes-expiry'),
   qualityField: $('quality-field'),
-  subsNote: $('subs-note'),
+  srt: $('srt'), srtNote: $('srt-note'),
   download: $('download'), cancel: $('cancel'), again: $('again'), home: $('home'),
   progress: $('progress'), bar: $('bar'), status: $('status'),
   memoryNote: $('memory-note'), iosNote: $('ios-note'), coffee: $('coffee'),
@@ -325,11 +329,25 @@ async function loadEpisode(episodeId) {
   }
 
   // Subtitles always go into the file; this just says so
-  els.subsNote.hidden = !episode.subtitles_url;
+  renderSrtOption();
   resetProgress();
 }
 
 els.image.addEventListener('error', () => { els.image.hidden = true; });
+
+// "Fleiri stillingar": the .srt option, remembered in this browser. Greyed out
+// when the episode has no subtitles.
+try { els.srt.checked = localStorage.getItem('srt') === '1'; } catch { /* storage unavailable */ }
+els.srt.addEventListener('change', () => {
+  try { localStorage.setItem('srt', els.srt.checked ? '1' : '0'); } catch { /* storage unavailable */ }
+  if (state.done) resetProgress();
+});
+// The "?" says the subtitles are in the video anyway; in Chrome/Edge also that
+// the browser asks a second time (hover shows it, see .hint)
+els.srtNote.dataset.i18n = canSaveToDisk ? 'srtNoteAsks' : 'srtNote';
+function renderSrtOption() {
+  els.srt.disabled = state.busy || !state.episode?.subtitles_url;
+}
 
 // The tab shows the program, with download progress in front: "42% · Blæja"
 function setPageTitle(mark = 'ruv-dl') {
@@ -568,6 +586,7 @@ async function openWriter(filename, mime) {
     });
     const stream = await handle.createWritable();
     return {
+      handle,
       write: chunk => stream.write(chunk),
       finish: () => stream.close(),
       abort: () => stream.abort().catch(() => {}),
@@ -578,6 +597,42 @@ async function openWriter(filename, mime) {
     write: async chunk => { chunks.push(chunk); },
     finish: async () => saveBlob(new Blob(chunks, { type: mime }), filename),
     abort: async () => { chunks.length = 0; },
+  };
+}
+
+// The .srt (an option under "Fleiri stillingar"), named 'Name.is.srt': players
+// such as VLC, Plex and Jellyfin read the language from it (with plain
+// 'Name.srt', VLC took whatever followed the last dot in the title as the
+// language, e.g. '28. okt. 2026' -> '2026').
+// In Chrome/Edge it gets a second save dialog, opened in the video's folder: a
+// website can only write to the file the user picked, so without it the .srt
+// would land in Downloads. It has to open straight after the video's dialog,
+// while the click still counts. Other browsers save it as a normal download,
+// like the video.
+async function openSrtWriter(filename, nextTo) {
+  const asDownload = {
+    save: async text => saveBlob(new Blob([text], { type: 'text/plain' }), filename),
+    discard: async () => {},
+  };
+  if (!canSaveToDisk) return asDownload;
+  let handle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: filename, startIn: nextTo,
+      types: [{ description: 'SubRip', accept: { 'text/plain': ['.srt'] } }],
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') return null;  // dialog closed: no .srt, the video still comes
+    console.warn('Second save dialog refused, the .srt goes to Downloads:', err);
+    return asDownload;
+  }
+  return {
+    save: async text => {
+      const stream = await handle.createWritable();
+      await stream.write(text);
+      await stream.close();
+    },
+    discard: async () => { await handle.remove?.().catch(() => {}); },
   };
 }
 
@@ -622,6 +677,8 @@ els.download.addEventListener('click', async () => {
     showError(els.status, err);
     return;
   }
+  // Straight after the video's dialog (see openSrtWriter)
+  const srt = els.srt.checked && state.episode.subtitles_url ? await openSrtWriter(`${name}.is.srt`, writer.handle) : null;
 
   state.abort = new AbortController();
   const { signal } = state.abort;
@@ -640,16 +697,17 @@ els.download.addEventListener('click', async () => {
   };
 
   try {
+    // Tags, subtitles and cover art go into the file itself
+    setStatus(els.status, 'preparing');
+    // A number shared with other episodes would give several files the same S01E05
+    const episode = numbersAreUnique(state.episodes) ? state.episode : { ...state.episode, number: null };
+    const extras = await getFileExtras(state.program, episode, { signal });
+    // The .srt is small, so it is saved before the video starts
+    if (srt) await (extras.subtitles.length ? srt.save(cuesToSrt(extras.subtitles)) : srt.discard());
+    startProgress();
     if (variant.direct) {
-      startProgress();
       await downloadDirect(variant.url, writer.write, onProgress, signal);
     } else {
-      // Tags, subtitles and cover art go into the file itself
-      setStatus(els.status, 'preparing');
-      // A number shared with other episodes would give several files the same S01E05
-      const episode = numbersAreUnique(state.episodes) ? state.episode : { ...state.episode, number: null };
-      const extras = await getFileExtras(state.program, episode, { signal });
-      startProgress();
       await downloadHls(variant.url, {
         audioUrl: variant.audio, muxjs: window.muxjs, write: writer.write, onProgress, signal, ...extras,
       });
@@ -657,6 +715,7 @@ els.download.addEventListener('click', async () => {
     await writer.finish();
   } catch (err) {
     await writer.abort();
+    await srt?.discard();  // no .srt without its video
     if (signal.aborted) {
       setStatus(els.status, 'cancelled');
       setPageTitle();
@@ -725,6 +784,7 @@ function setBusy(busy) {
   }
   els.episodeField.disabled = busy;
   els.qualityField.disabled = busy;
+  renderSrtOption();
   if (busy) {
     episodePicker.setOpen(false);
     qualityPicker.setOpen(false);
