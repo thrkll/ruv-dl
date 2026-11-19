@@ -348,7 +348,7 @@
         <p>Vafrar banna vefsíðum oft að lesa gögn af öðrum vefjum. Vefþjónn getur þó veitt leyfi fyrir því með svokölluðum CORS-hausum (Cross-Origin Resource Sharing). Þjónar RÚV senda hausinn <code>Access-Control-Allow-Origin</code>, sem leyfir öðrum vefsíðum að lesa efnið, til dæmis svo hægt sé að spila það á öðrum vefsíðum. Ef RÚV breytir þeirri stillingu hættir þessi síða að virka. En pls ekki. 🙏</p>
 
         <h3>Hvernig er efnið sett saman?</h3>
-        <p>RÚV sendir efni út með HLS (HTTP Live Streaming) og <code>.m3u8</code> playlist sem vísar á hundruð stuttra búta, um sex sekúndur hver, í mismunandi gæðum. ruv-dl les listann, sækir bútana í réttri röð, nokkra í einu, og breytir þeim úr MPEG-TS í MP4 með js-safninu mux.js. Mynd og hljóð eru afrituð óbreytt og ekki endurkóðuð með neinum hætti, svo engin gæði tapast.</p>
+        <p>RÚV sendir efni út með HLS (HTTP Live Streaming) og <code>.m3u8</code> playlist sem vísar á hundruð stuttra búta, um sex sekúndur hver, í mismunandi gæðum. ruv-dl les listann, sækir bútana í réttri röð, nokkra í einu, og breytir þeim úr MPEG-TS í MP4 með js-safninu mux.js og sérsmíðuðum muxing kóða. Mynd og hljóð eru afrituð óbreytt og ekki endurkóðuð með neinum hætti, svo engin gæði tapast.</p>
 
         <h3>Hvernig er skráin vistuð?</h3>
         <p>Í Chrome og Edge (Chromium-vafrar) er skráin skrifuð beint á diskinn á tölvunni þinni í gegnum File System Access API, svo efnið tekur lítið minni í vafranum. Aðrir vafrar (Firefox, Safari o.fl.) safna skránni saman í minni (sem <code>Blob</code>) og henni er svo halað niður eins og hverri annarri skrá.</p>
@@ -380,7 +380,7 @@
         <p>Browsers often stop websites from reading data from other sites. A server can allow it with so-called CORS headers (Cross-Origin Resource Sharing). RÚV's servers send the <code>Access-Control-Allow-Origin</code> header, which lets other websites read the content, for example so it can be played on other websites. If RÚV changes that setting, this page stops working. But please don’t. 🙏</p>
 
         <h3>How is the file put together?</h3>
-        <p>RÚV streams its content with HLS (HTTP Live Streaming) and a <code>.m3u8</code> playlist that points to hundreds of short segments, about six seconds each, in different qualities. The page reads the playlist, fetches the segments in order, a few at a time, and converts them from MPEG-TS to MP4 with the JS library mux.js. Video and audio are copied as they are and not re-encoded in any way, so no quality is lost.</p>
+        <p>RÚV streams its content with HLS (HTTP Live Streaming) and a <code>.m3u8</code> playlist that points to hundreds of short segments, about six seconds each, in different qualities. The page reads the playlist, fetches the segments in order, a few at a time, and converts them from MPEG-TS to MP4 with the JS library mux.js and custom-built muxing code. Video and audio are copied as they are and not re-encoded in any way, so no quality is lost.</p>
 
         <h3>How is the file saved?</h3>
         <p>In Chrome and Edge the file is then written straight to the disk on your computer through the File System Access API, so the content takes up little memory in the browser. Other browsers (Firefox, Safari etc.) collect the file in memory (as a <code>Blob</code>), which is then downloaded like any other file.</p>
