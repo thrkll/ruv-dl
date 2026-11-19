@@ -28,6 +28,8 @@ Can't be bothered with Python? Paste a ruv.is link into the web version and down
 
 Like ruv.is itself, it only works from Iceland. It works best in Chrome and Edge. Other browsers keep the whole file in memory until it's done, which is fine unless it's something really long.
 
+Subtitles go into the file as a subtitle track you can switch on in your player, and metadata is stored in the file as well.
+
 Shortcut: when watching or listening to something on ruv.is, add `-dl` to the address (`www.ruv-dl.is/...`) and you land right on the download.
 
 It relies on RÚV letting other websites read its streams, so it might stop working any day. The source lives in [`web/`](web/). To run it locally:
