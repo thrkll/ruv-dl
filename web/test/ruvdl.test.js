@@ -6,6 +6,7 @@ import {
   downloadHls, vttToSrt, getEpisodeList, getProgram, GeoblockError, UnsupportedError,
   NotFoundError, ruvUrlFromLocation, estimateBytes, countryFromTrace, flagEmoji,
 } from '../ruvdl.js';
+import { makeInit, makeFragment, readMp4, mp4box, cat } from './fixtures.js';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -102,18 +103,30 @@ test('parseMedia reads segments, duration, encryption and fMP4 init', () => {
                'https://ruv-vod.akamaized.net/lokad/5500416A0/init.mp4');
 });
 
-// Fake mux.js: every pushed segment becomes [init?] + "out:<segment bytes>"
+// Fake mux.js: each pushed segment's bytes are a label such as "segment3.ts;"
+// (or "v/…", "a/…" for separate video and audio). It becomes one real
+// fragment per track, timed by the segment number (6 s each), holding the
+// label as its single sample. Like mux.js it sends the init segment every time.
+const transmuxerOptions = [];
 function fakeMux() {
   return {
     mp4: {
       Transmuxer: class {
-        constructor() { this.handlers = []; this.buffered = []; }
+        constructor(options) { transmuxerOptions.push(options); this.handlers = []; this.buffered = []; }
         on(_event, fn) { this.handlers.push(fn); }
         push(bytes) { this.buffered.push(bytes); }
         flush() {
           for (const b of this.buffered.splice(0)) {
-            const data = new TextEncoder().encode('out:' + new TextDecoder().decode(b));
-            this.handlers.forEach(fn => fn({ initSegment: new TextEncoder().encode('INIT;'), data }));
+            const label = new TextDecoder().decode(b);
+            const i = Number(label.match(/segment(\d+)/)[1]);
+            const kinds = label.startsWith('v/') ? ['vide'] : label.startsWith('a/') ? ['soun'] : ['vide', 'soun'];
+            // Muxed: video 256, audio 257 (the PIDs); separate: both 256, like RÚV's packager
+            const tracks = kinds.map((handler, k) => ({ id: 256 + k, handler, timescale: 90000 }));
+            const data = cat(tracks.map(t => makeFragment([{
+              trackId: t.id, tfdt: i * 540000, data: new TextEncoder().encode(`${t.handler}:${label}`),
+              samples: [{ dur: 540000, size: t.handler.length + 1 + b.length, flags: 0 }],
+            }])));
+            this.handlers.forEach(fn => fn({ initSegment: makeInit(tracks), data }));
           }
         }
       },
@@ -127,9 +140,14 @@ const segmentRoutes = (n, overrides = {}) => url => {
   return name in overrides ? overrides[name] : new TextEncoder().encode(name + ';');
 };
 
-test('downloadHls writes init once and segments in order', async () => {
+// Each track's samples as text, from the written file
+const samplesOf = chunks => readMp4(cat(chunks)).tracks
+  .map(t => t.samples.map(s => new TextDecoder().decode(s.bytes)));
+
+test('downloadHls writes a regular MP4 with the segments in order', async () => {
   const written = [];
   const progress = [];
+  transmuxerOptions.length = 0;
   // Make early segments slow so they finish after later ones
   const slowFetch = fakeFetch(segmentRoutes(6));
   const fetchFn = async (url, opts) => {
@@ -137,13 +155,20 @@ test('downloadHls writes init once and segments in order', async () => {
     return slowFetch(url, opts);
   };
   const result = await downloadHls(`${BASE.replace(/[^/]+$/, '')}800/index.m3u8`, {
-    muxjs: fakeMux(), fetchFn, write: async c => written.push(new TextDecoder().decode(c)),
+    muxjs: fakeMux(), fetchFn, write: async c => written.push(c),
     onProgress: p => progress.push(p.done),
   });
-  assert.equal(written.join(''),
-    'INIT;' + [0, 1, 2, 3, 4, 5].map(i => `out:segment${i}.ts;`).join(''));
+  const file = readMp4(cat(written));
+  // ftyp, then video and audio fragments of each segment, moov at the end
+  assert.deepEqual(file.top, ['ftyp', ...Array(12).fill('mdat'), 'moov']);
+  const segs = [0, 1, 2, 3, 4, 5].map(i => `segment${i}.ts;`);
+  assert.deepEqual(samplesOf(written), [segs.map(s => `vide:${s}`), segs.map(s => `soun:${s}`)]);
+  assert.deepEqual(file.tracks.map(t => t.stts), [[[6, 540000]], [[6, 540000]]]);
+  assert.equal(file.mvhd.duration, 36000);
   assert.deepEqual(progress, [1, 2, 3, 4, 5, 6]);
   assert.equal(result.duration, 36);
+  assert.equal(result.bytes, cat(written).length);
+  assert.deepEqual(transmuxerOptions, [{ keepOriginalTimestamps: true }]);
 });
 
 test('downloadHls retries a failing segment', async () => {
@@ -155,9 +180,9 @@ test('downloadHls retries a failing segment', async () => {
   };
   const written = [];
   await downloadHls('https://x/v/index.m3u8', {
-    muxjs: fakeMux(), fetchFn, write: async c => written.push(new TextDecoder().decode(c)),
+    muxjs: fakeMux(), fetchFn, write: async c => written.push(c),
   });
-  assert.equal(written.join(''), 'INIT;out:segment0.ts;out:segment1.ts;');
+  assert.deepEqual(samplesOf(written)[0], ['vide:segment0.ts;', 'vide:segment1.ts;']);
 });
 
 test('downloadHls reports geoblocking without retrying', async () => {
@@ -176,15 +201,28 @@ test('downloadHls refuses encrypted streams', async () => {
     UnsupportedError);
 });
 
-test('downloadHls copies fMP4 streams without remuxing', async () => {
-  const fetchFn = fakeFetch(url => url.endsWith('.m3u8')
-    ? media(2, '#EXT-X-MAP:URI="init.mp4"')
-    : new TextEncoder().encode(url.split('/').pop() + ';'));
+test('downloadHls reads fMP4 streams without mux.js', async () => {
+  const fetchFn = fakeFetch(url => {
+    const name = url.split('/').pop();
+    if (name.endsWith('.m3u8')) return media(2, '#EXT-X-MAP:URI="init.mp4"');
+    if (name === 'init.mp4') return makeInit([{ id: 1, handler: 'vide', timescale: 90000 }]);
+    const i = Number(name.match(/\d/)[0]);
+    return makeFragment([{ trackId: 1, tfdt: i * 540000, data: new TextEncoder().encode(name),
+      samples: [{ dur: 540000, size: name.length }] }], { prefix: mp4box('styp', new Uint8Array(8)) });
+  });
   const written = [];
   await downloadHls('https://x/v/index.m3u8', {
-    muxjs: null, fetchFn, write: async c => written.push(new TextDecoder().decode(c)),
+    muxjs: null, fetchFn, write: async c => written.push(c),
   });
-  assert.equal(written.join(''), 'init.mp4;segment0.ts;segment1.ts;');
+  assert.deepEqual(readMp4(cat(written)).top, ['ftyp', 'mdat', 'mdat', 'moov']);
+  assert.deepEqual(samplesOf(written), [['segment0.ts', 'segment1.ts']]);
+});
+
+test('downloadHls refuses a stream mux.js cannot convert', async () => {
+  const silentMux = { mp4: { Transmuxer: class { on() {} push() {} flush() {} } } };
+  await assert.rejects(downloadHls('https://x/v/index.m3u8', {
+    muxjs: silentMux, fetchFn: fakeFetch(segmentRoutes(2)), write: async () => {},
+  }), UnsupportedError);
 });
 
 test('downloadHls stops when cancelled', async () => {
@@ -196,6 +234,120 @@ test('downloadHls stops when cancelled', async () => {
     write: async () => { if (++writes === 3) controller.abort(); },
   }));
   assert.ok(writes < 50);
+});
+
+// ---------- Separate audio renditions ----------
+
+test('parseMaster links a separate audio rendition, preferring Icelandic', () => {
+  const text = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="ENG",DEFAULT=YES,LANGUAGE="en",URI="ENG/stream.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="ISL-AD",LANGUAGE="is",CHARACTERISTICS="public.accessibility.describes-video",URI="AD/stream.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="ISL",LANGUAGE="is",URI="ISL/stream.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=7092698,RESOLUTION=1920x1080,CODECS="avc1.64002A,mp4a.40.2",AUDIO="aud"
+1080p/stream.m3u8
+`;
+  assert.equal(parseMaster(text, BASE)[0].audio,
+               'https://ruv-vod.akamaized.net/lokad/5500416A0/ISL/stream.m3u8');
+  // Plain playlists have no separate audio
+  assert.equal(parseMaster(MASTER, BASE)[0].audio, null);
+});
+
+test('parseMaster uses separate audio when a variant has no RESOLUTION or CODECS', () => {
+  const text = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="ISL",DEFAULT=YES,LANGUAGE="is",URI="ISL/stream.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=5000000,AUDIO="aud"
+video/stream.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=128000,AUDIO="aud"
+ISL/stream.m3u8
+`;
+  const isl = 'https://ruv-vod.akamaized.net/lokad/5500416A0/ISL/stream.m3u8';
+  // The bare variant gets the rendition; the rendition itself, listed as a variant, does not
+  assert.deepEqual(parseMaster(text, BASE).map(v => [v.url, v.audio]), [
+    ['https://ruv-vod.akamaized.net/lokad/5500416A0/video/stream.m3u8', isl],
+    [isl, null],
+  ]);
+});
+
+test('parseMaster treats an audio group without URI as muxed audio', () => {
+  const text = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="2@48000-mp4a-0",NAME="Audio 1",DEFAULT=NO,AUTOSELECT=YES
+#EXT-X-STREAM-INF:BANDWIDTH=4317204,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="2@48000-mp4a-0"
+3600/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=128000,CODECS="mp4a.40.2",AUDIO="2@48000-mp4a-0"
+a/index.m3u8
+`;
+  assert.deepEqual(parseMaster(text, BASE).map(v => v.audio), [null, null]);
+});
+
+test('parseMedia gives each segment its start time', () => {
+  const text = '#EXTM3U\n#EXTINF:6.4,\na.ts\n#EXTINF:6.0,\nb.ts\n#EXTINF:5.5,\nc.ts\n#EXT-X-ENDLIST\n';
+  const { starts, duration } = parseMedia(text, BASE);
+  assert.deepEqual(starts.map(s => Math.round(s * 10) / 10), [0, 6.4, 12.4]);
+  assert.equal(Math.round(duration * 10) / 10, 17.9);
+});
+
+test('downloadHls merges separate fMP4 video and audio into one MP4 in sync', async () => {
+  // Video at 90 kHz starting at 1.46 s, audio at 48 kHz starting at 1.40 s,
+  // both reusing track ID 256 like RÚV's packager does
+  const routes = url => {
+    const name = url.split('/').slice(-2).join('/');
+    if (name === 'v/index.m3u8') return '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.4,\ns0.m4s\n#EXTINF:6.4,\ns1.m4s\n#EXT-X-ENDLIST\n';
+    if (name === 'a/index.m3u8') return '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6.0,\ns0.m4s\n#EXTINF:6.0,\ns1.m4s\n#EXTINF:0.8,\ns2.m4s\n#EXT-X-ENDLIST\n';
+    // The video init also lists an audio track, which must be left out
+    if (name === 'v/init.mp4') return makeInit([{ id: 256, handler: 'vide', timescale: 90000 }, { id: 257, handler: 'soun' }]);
+    if (name === 'a/init.mp4') return makeInit([{ id: 256, handler: 'soun', timescale: 48000 }]);
+    const i = Number(name.match(/s(\d)/)[1]);
+    const data = new TextEncoder().encode(name);
+    if (name.startsWith('v/')) {
+      return makeFragment([{ trackId: 256, tfdt: 131400 + i * 576000, data, samples: [{ dur: 576000, size: data.length }] }]);
+    }
+    const dur = i < 2 ? 288000 : 38400;
+    return makeFragment([{ trackId: 256, tfdt: 67200 + i * 288000, data, samples: [{ dur, size: data.length }] }]);
+  };
+  const chunks = [];
+  const progress = [];
+  const result = await downloadHls('https://x/v/index.m3u8', {
+    audioUrl: 'https://x/a/index.m3u8', muxjs: null, fetchFn: fakeFetch(routes),
+    write: async c => chunks.push(c), onProgress: p => progress.push(`${p.done}/${p.total}`),
+  });
+  const file = readMp4(cat(chunks));
+  assert.deepEqual(file.top, ['ftyp', 'mdat', 'mdat', 'mdat', 'mdat', 'mdat', 'moov']);
+  assert.deepEqual(file.tracks.map(t => [t.handler, t.tkhd.id]), [['vide', 1], ['soun', 2]]);
+  assert.equal(file.mvhd.next, 3);
+  assert.deepEqual(samplesOf(chunks), [['v/s0.m4s', 'v/s1.m4s'], ['a/s0.m4s', 'a/s1.m4s', 'a/s2.m4s']]);
+  // Fragments in playback order: v0 a0 a1 v1 a2
+  const [v, a] = file.tracks;
+  const order = [...v.offsets.map(o => [o, 'v']), ...a.offsets.map(o => [o, 'a'])].sort((x, y) => x[0] - y[0]);
+  assert.equal(order.map(x => x[1]).join(''), 'vaava');
+  // Audio starts at 0, video keeps its 60 ms lead-in; real lengths, not "unknown"
+  assert.deepEqual(v.elst, [[60, -1], [12800, 0]]);
+  assert.deepEqual(a.elst, [[12800, 0]]);
+  assert.deepEqual(file.tracks.map(t => t.mdhd.duration), [12.8 * 90000, 12.8 * 48000]);
+  assert.equal(file.mvhd.duration, 12860);
+  assert.deepEqual(progress, ['1/5', '2/5', '3/5', '4/5', '5/5']);
+  assert.equal(Math.round(result.duration * 10) / 10, 12.8);
+});
+
+test('downloadHls merges separate MPEG-TS video and audio with one transmuxer each', async () => {
+  transmuxerOptions.length = 0;
+  const fetchFn = fakeFetch(url => {
+    const [dir, name] = url.split('/').slice(-2);
+    return name.endsWith('.m3u8') ? media(2) : new TextEncoder().encode(`${dir}/${name};`);
+  });
+  const chunks = [];
+  await downloadHls('https://x/v/index.m3u8', {
+    audioUrl: 'https://x/a/index.m3u8', muxjs: fakeMux(), fetchFn, write: async c => chunks.push(c),
+  });
+  assert.deepEqual(samplesOf(chunks), [
+    ['vide:v/segment0.ts;', 'vide:v/segment1.ts;'], ['soun:a/segment0.ts;', 'soun:a/segment1.ts;']]);
+  assert.deepEqual(transmuxerOptions, [{ keepOriginalTimestamps: true }, { keepOriginalTimestamps: true }]);
+});
+
+test('downloadHls reports a separate audio playlist that is geoblocked', async () => {
+  const fetchFn = fakeFetch(url => url.includes('/a/') ? { status: 403 } : media(1));
+  await assert.rejects(downloadHls('https://x/v/index.m3u8', {
+    audioUrl: 'https://x/a/index.m3u8', muxjs: fakeMux(), fetchFn, write: async () => {},
+  }), GeoblockError);
 });
 
 test('getEpisodeList sorts oldest first', async () => {
@@ -291,7 +443,7 @@ test('build.mjs writes the site and a 404.html with absolute script paths', () =
     // CNAME (the custom domain) is copied along when the repository has one
     const cname = fs.existsSync(path.join(web, 'CNAME')) ? ['CNAME'] : [];
     assert.deepEqual(fs.readdirSync(out).sort(),
-                     ['404.html', ...cname, 'app.js', 'index.html', 'ruvdl.js']);
+                     ['404.html', ...cname, 'app.js', 'index.html', 'mp4.js', 'ruvdl.js']);
     const page = fs.readFileSync(path.join(out, '404.html'), 'utf8');
     assert.match(page, /<script type="module" src="\/ruv-dl\/app\.js"><\/script>/);
     assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /src="app\.js"/);
