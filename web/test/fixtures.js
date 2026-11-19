@@ -133,7 +133,10 @@ export function readMp4(b, startOffset = 0) {
     const t = {
       handler: String.fromCharCode(...b.subarray(kid(mdia, 'hdlr').body + 8, kid(mdia, 'hdlr').body + 12)),
       tkhd: { id: u(tkhd.body + 12), duration: u(tkhd.body + 20), flags: u(tkhd.body) & 0xffffff,
-              volume: v.getUint16(tkhd.body + 36), width: u(tkhd.end - 8) / 65536, height: u(tkhd.end - 4) / 65536 },
+              alternate: v.getUint16(tkhd.body + 34), volume: v.getUint16(tkhd.body + 36),
+              width: u(tkhd.end - 8) / 65536, height: u(tkhd.end - 4) / 65536 },
+      language: unpackLanguage(v.getUint16(b[mdhd.body] ? mdhd.body + 32 : mdhd.body + 20)),
+      mediaHeader: kids(kid(mdia, 'minf'))[0].type,
       mdhd: b[mdhd.body] ? { timescale: u(mdhd.body + 20), duration: Number(v.getBigUint64(mdhd.body + 24)) }
                          : { timescale: u(mdhd.body + 12), duration: u(mdhd.body + 16) },
       elst: table(elst, 12, o => [u(o), s(o + 4)]),
@@ -171,7 +174,31 @@ export function readMp4(b, startOffset = 0) {
     top: top.map(x => x.type),
     mvhd: { timescale: u(mvhd.body + 12), duration: u(mvhd.body + 16), next: u(mvhd.end - 4) },
     tracks,
+    tags: readTags(b, kid(moov, 'udta')),
   };
+}
+
+const unpackLanguage = n => String.fromCharCode(((n >> 10) & 31) + 0x60, ((n >> 5) & 31) + 0x60, (n & 31) + 0x60);
+
+// moov/udta/meta/ilst -> { atom: value }: text as strings, integers as numbers,
+// images as { type, bytes }. null when there is no udta.
+function readTags(b, udta) {
+  if (!udta) return null;
+  const meta = boxesOf(b, udta.body, udta.end).find(x => x.type === 'meta');
+  const inMeta = boxesOf(b, meta.body + 4, meta.end);  // meta is a full box
+  const hdlr = inMeta.find(x => x.type === 'hdlr');
+  const ilst = inMeta.find(x => x.type === 'ilst');
+  const tags = { handler: String.fromCharCode(...b.subarray(hdlr.body + 8, hdlr.body + 12)) };
+  for (const item of boxesOf(b, ilst.body, ilst.end)) {
+    const data = boxesOf(b, item.body, item.end)[0];
+    const type = (b[data.body + 1] << 16) | (b[data.body + 2] << 8) | b[data.body + 3];
+    const value = b.subarray(data.body + 8, data.end);
+    const atom = item.type.replace('©', '(c)');
+    tags[atom] = type === 1 ? new TextDecoder().decode(value)
+      : type === 21 ? value.reduce((n, x) => n * 256 + x, 0)
+      : { type, bytes: value.slice() };
+  }
+  return tags;
 }
 
 // Collects writes into one Uint8Array

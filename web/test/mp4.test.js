@@ -245,3 +245,103 @@ test('errors: no matching track, nothing written, broken boxes', async () => {
   const frag = makeFragment([{ trackId: 1, tfdt: 0, samples: frames(2) }]);
   await assert.rejects(w2.addFragment(s, frag.subarray(0, frag.length - 3)), UnsupportedError);
 });
+
+// ---------- Subtitles and tags ----------
+
+const textOf = s => new TextDecoder().decode(s.bytes.subarray(2));
+
+test('subtitles: a tx3g track with a sample per cue and empty samples in the pauses', async () => {
+  const { mp4 } = await write(async w => {
+    const v = w.addTrack(makeInit([VIDEO]));
+    // Video starts at 10 s (MPEG-TS timestamps); subtitles count from the program start
+    await w.addFragment(v, makeFragment([{ trackId: 1, tfdt: 900000, samples: frames(250) }]));
+    w.addTextTrack([
+      { start: 4, end: 6.5, text: 'Seinni' },
+      { start: 1, end: 2.25, text: 'Fyrst\nÁ tveimur línum' },
+      { start: 6, end: 7, text: 'Skarast' },  // starts before the previous ends
+      { start: 8, end: 8, text: 'Engin lengd' },
+    ]);
+  });
+  assert.deepEqual(mp4.top, ['ftyp', 'mdat', 'mdat', 'moov']);
+  const [v, s] = mp4.tracks;
+  assert.equal(s.handler, 'sbtl');
+  assert.equal(s.mediaHeader, 'nmhd');
+  assert.equal(s.language, 'isl');
+  assert.equal(v.language, 'und');
+  assert.equal(new TextDecoder().decode(s.stsd.subarray(20, 24)), 'tx3g');
+  assert.equal(s.mdhd.timescale, 1000);
+  assert.deepEqual(s.stts, [[1, 1000], [1, 1250], [1, 1750], [1, 2500], [1, 500]]);
+  assert.deepEqual(s.samples.map(textOf), ['', 'Fyrst\nÁ tveimur línum', '', 'Seinni', 'Skarast']);
+  assert.deepEqual(s.samples.map(x => x.bytes[0] * 256 + x.bytes[1]), s.samples.map(x => x.bytes.length - 2));
+  // No delay for either track: both start where the movie starts
+  assert.deepEqual(v.elst, [[10000, 0]]);
+  assert.deepEqual(s.elst, [[7000, 0]]);
+  // Its own alternate group, no volume, and the picture size for the text box
+  assert.deepEqual([v.tkhd.alternate, s.tkhd.alternate, s.tkhd.volume], [0, 2, 0]);
+  assert.deepEqual([s.tkhd.width, s.tkhd.height], [320, 180]);
+  assert.equal(mp4.mvhd.next, 3);
+});
+
+test('subtitles: nothing is added for no cues, and they alone do not make a file', async () => {
+  const { mp4 } = await write(async w => {
+    const v = w.addTrack(makeInit([VIDEO]));
+    await w.addFragment(v, makeFragment([{ trackId: 1, tfdt: 0, samples: frames(2) }]));
+    w.addTextTrack([]);
+    w.addTextTrack([{ start: 1, end: 2, text: '' }]);
+  });
+  assert.deepEqual(mp4.tracks.map(t => t.handler), ['vide']);
+
+  const w = createMp4Writer({ write: async () => {} });
+  w.addTextTrack([{ start: 0, end: 1, text: 'Hæ' }]);
+  await assert.rejects(w.finish(), UnsupportedError);
+});
+
+test('tags and cover art go in moov/udta/meta/ilst', async () => {
+  const jpeg = Uint8Array.of(0xff, 0xd8, 0xff, 0xe0, 1, 2, 3);
+  const long = 'Orð '.repeat(100).trim();
+  const { mp4 } = await write(async w => {
+    const v = w.addTrack(makeInit([VIDEO]));
+    await w.addFragment(v, makeFragment([{ trackId: 1, tfdt: 0, samples: frames(2) }]));
+  }, {});
+  assert.equal(mp4.tags, null);  // no tags given, no udta
+
+  const tagged = await (async () => {
+    const out = collector();
+    const w = createMp4Writer({ write: out.write });
+    const v = w.addTrack(makeInit([VIDEO]));
+    await w.addFragment(v, makeFragment([{ trackId: 1, tfdt: 0, samples: frames(2) }]));
+    await w.finish({
+      tags: { title: 'Þáttur 5', show: 'Blæja', season: 2, episode: 5, episodeId: 'S02E05',
+              description: long, date: '2026-11-15', genre: 'Barnaefni', network: 'RÚV', kind: 'tv',
+              unknown: 'ignored' },
+      cover: { kind: 'jpeg', data: jpeg },
+    });
+    return readMp4(out.bytes());
+  })();
+  const { tags } = tagged;
+  assert.equal(tags.handler, 'mdir');
+  assert.equal(tags['(c)nam'], 'Þáttur 5');
+  assert.equal(tags.tvsh, 'Blæja');
+  assert.equal(tags.tvsn, 2);
+  assert.equal(tags.tves, 5);
+  assert.equal(tags.tven, 'S02E05');
+  assert.equal(tags.ldes, long);
+  assert.equal(tags.desc.length, 255);
+  assert.ok(tags.desc.endsWith('…'));
+  assert.equal(tags['(c)day'], '2026-11-15');
+  assert.equal(tags['(c)gen'], 'Barnaefni');
+  assert.equal(tags.tvnn, 'RÚV');
+  assert.equal(tags.stik, 10);
+  assert.deepEqual(tags.covr, { type: 13, bytes: jpeg });
+  assert.equal(Object.keys(tags).length, 13);
+});
+
+test('tags: empty values are left out', async () => {
+  const out = collector();
+  const w = createMp4Writer({ write: out.write });
+  const v = w.addTrack(makeInit([VIDEO]));
+  await w.addFragment(v, makeFragment([{ trackId: 1, tfdt: 0, samples: frames(2) }]));
+  await w.finish({ tags: { title: 'Kvikmynd', show: null, season: null, description: '', kind: 'movie' },
+                   cover: { kind: 'webp', data: Uint8Array.of(1) } });
+  assert.deepEqual(readMp4(out.bytes()).tags, { handler: 'mdir', '(c)nam': 'Kvikmynd', stik: 9 });
+});
