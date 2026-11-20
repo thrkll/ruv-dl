@@ -261,7 +261,29 @@ function renderConnection() {
   const code = state.country;
   els.conn.hidden = !code;
   if (!code) return;
-  els.connFlag.textContent = `${flagEmoji(code)} ${countryName(code)}`;
+  // Windows has no flag emoji (it shows the letters "IS"), so Iceland, where
+  // nearly every visitor is, gets a drawn flag; other countries keep the emoji
+  const flag = code === 'IS' ? icelandFlag() : document.createTextNode(flagEmoji(code));
+  els.connFlag.replaceChildren(flag, ` ${countryName(code)}`);
+}
+
+// The Icelandic flag, 25:18 with the cross set off-centre towards the pole
+function icelandFlag() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  for (const [k, v] of Object.entries({ viewBox: '0 0 25 18', class: 'flag', 'aria-hidden': 'true', focusable: 'false' })) {
+    svg.setAttribute(k, v);
+  }
+  for (const [x, y, w, h, fill] of [
+    [0, 0, 25, 18, '#02529c'],
+    [7, 0, 4, 18, '#fff'], [0, 7, 25, 4, '#fff'],
+    [8, 0, 2, 18, '#dc1e35'], [0, 8, 25, 2, '#dc1e35'],
+  ]) {
+    const rect = document.createElementNS(ns, 'rect');
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h, fill })) rect.setAttribute(k, v);
+    svg.append(rect);
+  }
+  return svg;
 }
 
 // ---------- Looking up a program ----------
