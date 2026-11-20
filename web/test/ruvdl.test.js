@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseRuvUrl, sanitize, fileTitle, parseMaster, parseMedia, isMediaPlaylist,
-  downloadHls, vttToSrt, getEpisodeList, getProgram, GeoblockError, UnsupportedError,
+  downloadHls, parseVtt, splitSeason, fileTags, getFileExtras, getEpisodeList, numbersAreUnique, cuesToSrt, getProgram, GeoblockError, UnsupportedError,
   NotFoundError, ruvUrlFromLocation, estimateBytes, countryFromTrace, flagEmoji,
 } from '../ruvdl.js';
 import { makeInit, makeFragment, readMp4, mp4box, cat } from './fixtures.js';
@@ -350,19 +350,43 @@ test('downloadHls reports a separate audio playlist that is geoblocked', async (
   }), GeoblockError);
 });
 
-test('getEpisodeList sorts oldest first', async () => {
+test('getEpisodeList sorts oldest first, with air date, length and expiry', async () => {
   const fetchFn = async (url, opts) => {
-    assert.equal(JSON.parse(opts.body).variables.id, 37230);
+    const { variables, query } = JSON.parse(opts.body);
+    assert.equal(variables.id, 37230);
+    assert.match(query, /episodes \{ id number title firstrun duration file_expires \}/);
     return new Response(JSON.stringify({ data: { Program: { title: 'x', episodes: [
-      { id: 'c', number: 3, title: '3' }, { id: 'a', number: 1, title: '1' },
+      { id: 'c', number: 3, title: '3' },
+      { id: 'a', number: 1, title: '1', firstrun: '2026-10-18T21:00:00', duration: 2923, file_expires: '2027-05-17' },
       { id: 'x', number: null, title: 'Aukaþáttur' }, { id: 'b', number: 2, title: '2' },
     ] } } }));
   };
   const list = await getEpisodeList('37230', { fetchFn });
   assert.deepEqual(list.map(e => e.id), ['a', 'b', 'c', 'x']);
+  assert.deepEqual(list[0], { id: 'a', number: 1, title: '1', firstrun: '2026-10-18T21:00:00', duration: 2923, file_expires: '2027-05-17' });
 });
 
-test('vttToSrt converts timings, numbering and tags', () => {
+test('getEpisodeList sorts by air date when the numbers repeat', async () => {
+  // Blæja III: episodes come in batches whose numbering starts over
+  const episodes = [
+    { id: 'are58b', number: 11, firstrun: '2025-10-18T08:00:00' },
+    { id: 'are581', number: 1, firstrun: '2025-08-02T08:00:00' },
+    { id: 'ardhnb', number: 11, firstrun: '2025-05-25T08:00:00' },
+    { id: 'ard7ur', number: 11, firstrun: '2024-11-03T08:00:00' },
+    { id: 'ard7ui', number: 2, firstrun: '2024-09-01T08:00:00' },
+  ];
+  const fetchFn = async () => new Response(JSON.stringify({ data: { Program: { title: 'Blæja III', episodes } } }));
+  const list = await getEpisodeList('36429', { fetchFn });
+  assert.deepEqual(list.map(e => e.id), ['ard7ui', 'ard7ur', 'ardhnb', 'are581', 'are58b']);
+});
+
+test('numbersAreUnique ignores episodes without a number', () => {
+  assert.equal(numbersAreUnique([{ number: 1 }, { number: 2 }, { number: null }, { number: '' }]), true);
+  assert.equal(numbersAreUnique([{ number: 11 }, { number: '11' }]), false);
+  assert.equal(numbersAreUnique([]), true);
+});
+
+test('parseVtt reads cues in seconds and drops tags, settings and entities', () => {
   const vtt = `WEBVTT
 
 NOTE a comment
@@ -372,22 +396,114 @@ STYLE
 
 1
 00:00:02.000 --> 00:00:03.080 line:90% align:center
-<c.yellow>Hæ.</c> <i>Ég held</i> ég sé næstur.
+<c.yellow>Hæ.</c> <i>Ég held</i> ég sé næstur &amp; svo.
 
 01:05.5 --> 01:07.25
 Tvær
 línur
+
+3
+00:01:10.000 --> 00:01:11.000
+<i></i>
 `;
-  assert.equal(vttToSrt(vtt),
-`1
+  assert.deepEqual(parseVtt(vtt), [
+    { start: 2, end: 3.08, text: 'Hæ. Ég held ég sé næstur & svo.' },
+    { start: 65.5, end: 67.25, text: 'Tvær\nlínur' },
+  ]);
+});
+
+test('cuesToSrt numbers the cues and writes SRT timings', () => {
+  assert.equal(cuesToSrt([
+    { start: 2, end: 3.08, text: 'Hæ.' },
+    { start: 3725.5, end: 3727.0004, text: 'Tvær\nlínur' },
+  ]), `1
 00:00:02,000 --> 00:00:03,080
-Hæ. <i>Ég held</i> ég sé næstur.
+Hæ.
 
 2
-00:01:05,500 --> 00:01:07,250
+01:02:05,500 --> 01:02:07,000
 Tvær
 línur
 `);
+  assert.equal(cuesToSrt([]), '');
+});
+
+test('splitSeason reads a Roman numeral at the end of the title', () => {
+  assert.deepEqual(splitSeason('Blæja II'), ['Blæja', 2]);
+  assert.deepEqual(splitSeason('Blæja - XIV'), ['Blæja', 14]);
+  assert.deepEqual(splitSeason('Blæja'), ['Blæja', 1]);
+  assert.deepEqual(splitSeason('Hinrik VIII'), ['Hinrik', 8]);
+  assert.deepEqual(splitSeason('IIII'), ['IIII', 1]);  // not a canonical numeral
+  assert.deepEqual(splitSeason(null), ['', 1]);
+});
+
+const PROGRAM = {
+  title: 'Blæja II', multiple_episodes: true, description: ['Um Blæju.'],
+  categories: [{ title: 'Barnaefni', slug: 'barnaefni' }], image_og: 'https://myndir.ruv.is/program.jpg',
+};
+const EPISODE = {
+  id: 'abc', number: 5, title: 'Mömmuskóli', firstrun: '2024-10-14T08:00:00',
+  description: ['Fyrsta lína.', 'Önnur lína.'], image_og: 'https://myndir.ruv.is/episode.jpg',
+  subtitles_url: 'https://muninn.nyr.ruv.is/files/subtitles/webvtt/closed/1.vtt',
+};
+
+test('fileTags for an episode and a film, like the Python tool', () => {
+  assert.deepEqual(fileTags(PROGRAM, EPISODE), {
+    kind: 'tv', title: 'Mömmuskóli', show: 'Blæja', season: 2, episode: 5, episodeId: 'S02E05',
+    description: 'Fyrsta lína.\nÖnnur lína.', date: '2024-10-14', genre: 'Barnaefni', network: 'RÚV',
+  });
+  // No episode number or description: no S01E01, the program's description instead
+  const noNumber = fileTags(PROGRAM, { ...EPISODE, number: null, description: [] });
+  assert.deepEqual([noNumber.episode, noNumber.episodeId, noNumber.description], [null, null, 'Um Blæju.']);
+  assert.deepEqual(fileTags({ title: 'Kvikmynd', multiple_episodes: false }, { firstrun: null }), {
+    kind: 'movie', title: 'Kvikmynd', description: null, date: null, genre: null, network: 'RÚV',
+  });
+});
+
+const image = (type, bytes = [1, 2, 3]) => new Response(Uint8Array.from(bytes), { headers: { 'content-type': type } });
+
+test('getFileExtras fetches subtitles and the JPEG cover', async () => {
+  const log = [];
+  const fetchFn = async url => {
+    log.push(url);
+    if (url.endsWith('.vtt')) return new Response('WEBVTT\n\n00:01.000 --> 00:02.000\nHæ\n');
+    if (url.endsWith('episode.jpg')) return image('image/jpeg');
+    throw new Error(`unexpected ${url}`);
+  };
+  const extras = await getFileExtras(PROGRAM, EPISODE, { fetchFn });
+  assert.deepEqual(extras.subtitles, [{ start: 1, end: 2, text: 'Hæ' }]);
+  assert.deepEqual(extras.cover, { kind: 'jpeg', data: Uint8Array.of(1, 2, 3) });
+  assert.equal(extras.tags.episodeId, 'S02E05');
+  assert.deepEqual(log.sort(), [EPISODE.image_og, EPISODE.subtitles_url].sort());
+});
+
+test('getFileExtras goes without subtitles or cover when they fail', async () => {
+  // Program cover when the episode has none; WebP is no use as cover art
+  const webp = await getFileExtras(PROGRAM, { ...EPISODE, image_og: null, subtitles_url: null }, {
+    fetchFn: async url => (url === PROGRAM.image_og ? image('image/webp') : assert.fail(url)),
+  });
+  assert.deepEqual([webp.subtitles, webp.cover], [[], null]);
+
+  const failing = await getFileExtras(PROGRAM, EPISODE, {
+    fetchFn: async url => (url.endsWith('.vtt') ? new Response(null, { status: 404 }) : Promise.reject(new TypeError('offline'))),
+  });
+  assert.deepEqual([failing.subtitles, failing.cover], [[], null]);
+  assert.equal(failing.tags.show, 'Blæja');
+});
+
+test('downloadHls puts subtitles, tags and cover into the file', async () => {
+  const written = [];
+  await downloadHls('https://x/v/index.m3u8', {
+    muxjs: fakeMux(), fetchFn: fakeFetch(segmentRoutes(2)), write: async c => written.push(c),
+    subtitles: [{ start: 1, end: 2, text: 'Hæ' }],
+    tags: { title: 'Mömmuskóli', kind: 'tv' },
+    cover: { kind: 'png', data: Uint8Array.of(9) },
+  });
+  const file = readMp4(cat(written));
+  assert.deepEqual(file.tracks.map(t => t.handler), ['vide', 'soun', 'sbtl']);
+  assert.deepEqual(file.tracks[2].samples.map(s => new TextDecoder().decode(s.bytes.subarray(2))), ['', 'Hæ']);
+  assert.equal(file.tags['(c)nam'], 'Mömmuskóli');
+  assert.deepEqual(file.tags.covr, { type: 14, bytes: Uint8Array.of(9) });
 });
 
 test('ruvUrlFromLocation supports ?url=, swapped domain and prefixed links', () => {

@@ -1,8 +1,8 @@
 // ruv-dl web: page logic. Core download code lives in ruvdl.js.
 import {
   parseRuvUrl, ruvUrlFromLocation, getProgram, getEpisodeList, parseMaster,
-  isMediaPlaylist, downloadHls, vttToSrt, fileTitle, estimateBytes,
-  countryFromTrace, flagEmoji, GeoblockError, UnsupportedError, NotFoundError,
+  isMediaPlaylist, downloadHls, getFileExtras, fileTitle, estimateBytes,
+  countryFromTrace, flagEmoji, GeoblockError, UnsupportedError, NotFoundError, numbersAreUnique, cuesToSrt,
 } from './ruvdl.js';
 
 const REPO_URL = 'https://github.com/thrkll/ruv-dl';
@@ -26,11 +26,19 @@ const TEXT = {
     support: 'Viltu að þessi síða verði hér áfram? Það veltur á mínum frítíma og þínum stuðningi.',
     more: 'Meira', less: 'Minna',
     episode: 'Þáttur', quality: 'Gæði', best: 'mestu gæði', about: 'u.þ.b. {size}',
-    subs: 'Íslenskur texti (.srt)', noSubs: 'Enginn texti til fyrir þetta efni',
+    moreSettings: 'Fleiri stillingar', srtSetting: 'Vista undirtexta sem .srt skrá', srtInfo: 'Nánar',
+    srtNote: 'Textinn er innbyggður í myndskrána. Hakaðu við ef þú vilt líka fá sérstaka textaskrá.',
+    srtNoteAsks: 'Textinn er innbyggður í myndskrána. Hakaðu við ef þú vilt líka fá sérstaka textaskrá. Vafrinn spyr hvar eigi að vista hana.',
+    minutes: '{m} mín', hours: '{h} klst', hoursMinutes: '{h} klst {m} mín',
+    availableUntil: 'til {date}', expiresIn: 'rennur út eftir {n} daga', expiresTomorrow: 'rennur út á morgun', expiresToday: 'rennur út í dag',
+    allAvailableUntil: 'Allir þættirnir eru aðgengilegir til {date}.',
+    allExpiresIn: 'Allir þættirnir renna út eftir {n} daga.',
+    allExpiresTomorrow: 'Allir þættirnir renna út á morgun.', allExpiresToday: 'Allir þættirnir renna út í dag.',
+    downloaded: 'Sótt', pickMore: 'Fleiri',
     download: 'Sækja', cancel: 'Hætta við', again: 'Sækja eitthvað annað',
     searching: 'Leita…', loadingEpisode: 'Sæki upplýsingar um efnið…',
     progress: '{pct}% · {bytes} · u.þ.b. {eta} eftir',
-    gettingSubs: 'Sæki texta…',
+    preparing: 'Undirbý niðurhal…',
     done: 'Lokið! Vistað sem {file}',
     cancelled: 'Hætt við niðurhal.',
     minSec: '{m} mín {s} sek', sec: '{s} sek',
@@ -63,11 +71,19 @@ const TEXT = {
     support: 'Want to help keep this project going?',
     more: 'More', less: 'Less',
     episode: 'Episode', quality: 'Quality', best: 'best', about: 'about {size}',
-    subs: 'Icelandic subtitles (.srt)', noSubs: 'No subtitles available',
+    moreSettings: 'More settings', srtSetting: 'Save subtitles as an .srt file', srtInfo: 'More info',
+    srtNote: 'Subtitles are always built into the video file. Only tick this if you also want them as a separate file.',
+    srtNoteAsks: 'Subtitles are always built into the video file. Only tick this if you also want them as a separate file. Your browser will then ask where to save it.',
+    minutes: '{m} min', hours: '{h} h', hoursMinutes: '{h} h {m} min',
+    availableUntil: 'until {date}', expiresIn: 'leaves in {n} days', expiresTomorrow: 'leaves tomorrow', expiresToday: 'leaves today',
+    allAvailableUntil: 'All episodes are available until {date}.',
+    allExpiresIn: 'All episodes leave ruv.is in {n} days.',
+    allExpiresTomorrow: 'All episodes leave ruv.is tomorrow.', allExpiresToday: 'All episodes leave ruv.is today.',
+    downloaded: 'Downloaded', pickMore: 'More',
     download: 'Download', cancel: 'Cancel', again: 'Download something else',
     searching: 'Looking up…', loadingEpisode: 'Loading…',
     progress: '{pct}% · {bytes} · about {eta} left',
-    gettingSubs: 'Downloading subtitles…',
+    preparing: 'Getting ready…',
     done: 'Done! Saved as {file}',
     cancelled: 'Download cancelled.',
     minSec: '{m} min {s} s', sec: '{s} s',
@@ -105,8 +121,9 @@ const els = {
   howto: $('howto'), tip: $('tip'), tipUrl: $('tip-url'),
   program: $('program'), image: $('image'), title: $('title'), description: $('description'),
   more: $('more'),
-  episodeField: $('episode-field'), episode: $('episode'), quality: $('quality'),
-  subs: $('subs'), subsLabel: $('subs-label'),
+  episodeField: $('episode-field'), episodes: $('episodes'), episodesExpiry: $('episodes-expiry'),
+  qualityField: $('quality-field'),
+  srt: $('srt'), srtNote: $('srt-note'),
   download: $('download'), cancel: $('cancel'), again: $('again'), home: $('home'),
   progress: $('progress'), bar: $('bar'), status: $('status'),
   memoryNote: $('memory-note'), iosNote: $('ios-note'), coffee: $('coffee'),
@@ -118,7 +135,7 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
 
 const state = {
   programId: null, program: null, episode: null, episodes: [], variants: [],
-  busy: false, done: false, abort: null, country: null,
+  quality: 0, busy: false, done: false, abort: null, country: null,
 };
 
 // ---------- Formatting ----------
@@ -194,8 +211,8 @@ function applyLanguage() {
   els.more.textContent = t(els.more.getAttribute('aria-expanded') === 'true' ? 'less' : 'more');
   renderConnection();
   if (state.episode) {
-    renderSubtitles();
-    renderQualities(Number(els.quality.value) || 0);
+    renderQualities(state.quality);
+    renderEpisodeList();
   }
   renderStatus(els.lookupStatus);
   renderStatus(els.status);
@@ -244,7 +261,29 @@ function renderConnection() {
   const code = state.country;
   els.conn.hidden = !code;
   if (!code) return;
-  els.connFlag.textContent = `${flagEmoji(code)} ${countryName(code)}`;
+  // Windows has no flag emoji (it shows the letters "IS"), so Iceland, where
+  // nearly every visitor is, gets a drawn flag; other countries keep the emoji
+  const flag = code === 'IS' ? icelandFlag() : document.createTextNode(flagEmoji(code));
+  els.connFlag.replaceChildren(flag, ` ${countryName(code)}`);
+}
+
+// The Icelandic flag, 25:18 with the cross set off-centre towards the pole
+function icelandFlag() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  for (const [k, v] of Object.entries({ viewBox: '0 0 25 18', class: 'flag', 'aria-hidden': 'true', focusable: 'false' })) {
+    svg.setAttribute(k, v);
+  }
+  for (const [x, y, w, h, fill] of [
+    [0, 0, 25, 18, '#02529c'],
+    [7, 0, 4, 18, '#fff'], [0, 7, 25, 4, '#fff'],
+    [8, 0, 2, 18, '#dc1e35'], [0, 8, 25, 2, '#dc1e35'],
+  ]) {
+    const rect = document.createElementNS(ns, 'rect');
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h, fill })) rect.setAttribute(k, v);
+    svg.append(rect);
+  }
+  return svg;
 }
 
 // ---------- Looking up a program ----------
@@ -263,7 +302,7 @@ async function lookup(link) {
   }
   els.find.disabled = true;
   els.program.hidden = true;
-  document.title = 'ruv-dl';
+  setPageTitle();
   els.tip.hidden = true;
   setStatus(els.lookupStatus, 'searching');
   try {
@@ -278,9 +317,11 @@ async function lookup(link) {
     state.episodes = episodes;
     await loadEpisode(firstId);
     renderEpisodeList();
+    episodePicker.setOpen(false);
     setStatus(els.lookupStatus, null);
     els.howto.hidden = true;
     els.program.hidden = false;
+    setPageTitle();
     showTip(link);
     updateDescriptionToggle();
   } catch (err) {
@@ -298,7 +339,7 @@ async function loadEpisode(episodeId) {
   state.episode = episode;
 
   els.title.textContent = program.title;
-  document.title = `ruv-dl · ${program.title}`;
+  setPageTitle();
   els.description.textContent = (program.description || []).join(' ');
   setDescriptionExpanded(false);
 
@@ -309,18 +350,31 @@ async function loadEpisode(episodeId) {
     els.image.alt = program.title;
   }
 
-  renderSubtitles();
-  els.subs.checked = !!episode.subtitles_url;
+  // Subtitles always go into the file; this just says so
+  renderSrtOption();
   resetProgress();
 }
 
 els.image.addEventListener('error', () => { els.image.hidden = true; });
 
-function renderSubtitles() {
-  const has = !!state.episode?.subtitles_url;
-  els.subs.hidden = !has; // no checkbox at all when there is nothing to tick
-  els.subs.disabled = !has || state.busy;
-  els.subsLabel.textContent = t(has ? 'subs' : 'noSubs');
+// "Fleiri stillingar": the .srt option, remembered in this browser. Greyed out
+// when the episode has no subtitles.
+try { els.srt.checked = localStorage.getItem('srt') === '1'; } catch { /* storage unavailable */ }
+els.srt.addEventListener('change', () => {
+  try { localStorage.setItem('srt', els.srt.checked ? '1' : '0'); } catch { /* storage unavailable */ }
+  if (state.done) resetProgress();
+});
+// The "?" says the subtitles are in the video anyway; in Chrome/Edge also that
+// the browser asks a second time (hover shows it, see .hint)
+els.srtNote.dataset.i18n = canSaveToDisk ? 'srtNoteAsks' : 'srtNote';
+function renderSrtOption() {
+  els.srt.disabled = state.busy || !state.episode?.subtitles_url;
+}
+
+// The tab shows the program, with download progress in front: "42% · Blæja"
+function setPageTitle(mark = 'ruv-dl') {
+  const name = els.program.hidden ? null : state.program?.title;
+  document.title = name ? `${mark} · ${name}` : 'ruv-dl';
 }
 
 async function loadQualities(fileUrl, duration) {
@@ -345,39 +399,152 @@ async function loadQualities(fileUrl, duration) {
 }
 
 function renderQualities(selected) {
-  els.quality.replaceChildren();
-  state.variants.forEach((v, i) => {
+  state.quality = selected;
+  const items = state.variants.map((v, i) => {
     const name = v.direct ? 'Original' : v.height ? `${v.height}p` : (lang === 'is' ? 'Hljóð' : 'Audio');
-    const parts = [name];
-    if (v.bytes) parts.push(t('about', { size: formatBytes(v.bytes) }));
-    let label = parts.join(' · ');
-    if (i === 0 && state.variants.length > 1) label += ` (${t('best')})`;
-    els.quality.add(new Option(label, String(i), false, i === selected));
+    const meta = el('span', 'ep-meta');
+    const parts = [v.bytes && t('about', { size: formatBytes(v.bytes) }), i === 0 && state.variants.length > 1 && t('best')]
+      .filter(Boolean).map(text => el('span', '', text));
+    parts.forEach((part, k) => meta.append(...(k ? [' · ', part] : [part])));
+    const main = el('span', 'ep-main');
+    main.append(el('span', 'ep-title', name), meta);
+    return { value: String(i), parts: () => [main.cloneNode(true)], current: i === selected };
   });
-  els.quality.disabled = state.busy || state.variants.length < 2;
+  qualityPicker.render(items);
 }
 
-function renderEpisodeList() {
-  const current = state.episode;
-  let episodes = state.episodes;
-  if (!episodes.some(e => e.id === current.id)) {
-    episodes = [...episodes, { id: current.id, number: current.number, title: current.title }];
-  }
-  els.episode.replaceChildren();
-  for (const e of episodes) {
-    const label = e.number && !String(e.title).includes(String(e.number))
-      ? `${e.number}. ${e.title}` : e.title;
-    els.episode.add(new Option(label || e.id, e.id, false, e.id === current.id));
-  }
-  els.episodeField.hidden = episodes.length < 2;
+// ---------- Episode list ----------
+
+// Episodes downloaded in this browser ("programId/episodeId"), so the list can mark them.
+// Only kept in localStorage; never sent anywhere.
+const DOWNLOADED_KEY = 'downloaded';
+function downloadedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(DOWNLOADED_KEY)) || []); } catch { return new Set(); }
+}
+function markDownloaded(programId, episodeId) {
+  const key = `${programId}/${episodeId}`;
+  try {
+    const keys = [...downloadedSet()].filter(k => k !== key);
+    keys.push(key);
+    localStorage.setItem(DOWNLOADED_KEY, JSON.stringify(keys.slice(-1000)));
+  } catch { /* storage unavailable */ }
 }
 
-els.episode.addEventListener('change', async () => {
-  if (state.busy) return;
+// Chrome ships without Icelandic month names
+const MONTHS_IS = ['jan.', 'feb.', 'mars', 'apr.', 'maí', 'júní', 'júlí', 'ágú.', 'sep.', 'okt.', 'nóv.', 'des.'];
+
+// '2026-11-15T21:00:00' -> '15. nóv. 2026' / '15 Nov 2026' (no year for this year's dates)
+function formatDate(value) {
+  const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const withYear = year !== new Date().getFullYear();
+  if (lang === 'is') return `${day}. ${MONTHS_IS[month - 1]}${withYear ? ` ${year}` : ''}`;
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', ...(withYear && { year: 'numeric' }), timeZone: 'UTC' })
+    .format(Date.UTC(year, month - 1, day));
+}
+
+// 2899 -> '48 mín'; 5520 -> '1 klst 32 mín'
+function formatDuration(seconds) {
+  const total = Math.round(Number(seconds) / 60);
+  if (!(total > 0)) return null;
+  const h = Math.floor(total / 60), m = total % 60;
+  return h ? t(m ? 'hoursMinutes' : 'hours', { h, m }) : t('minutes', { m });
+}
+
+// Days until an episode leaves ruv.is, or null if it stays ('9999-12-31')
+function daysLeft(expires) {
+  const m = String(expires || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m || Number(m[1]) >= 9000) return null;
+  return Math.ceil((Date.UTC(m[1], m[2] - 1, m[3]) - Date.now()) / 86_400_000);
+}
+
+const EXPIRING_DAYS = 30;   // shown in red from here
+const SHOW_EXPIRY_DAYS = 365;  // further away than this is not worth mentioning
+
+// "rennur út eftir 12 daga" (soon) or "til 17. maí 2027"; all = said of every episode at once
+function expiryText(expires, all = false) {
+  const left = daysLeft(expires);
+  if (left === null || left < 0 || left > SHOW_EXPIRY_DAYS) return null;
+  const soon = left <= EXPIRING_DAYS;
+  const key = !soon ? 'availableUntil' : left === 0 ? 'expiresToday' : left === 1 ? 'expiresTomorrow' : 'expiresIn';
+  return { soon, text: t(all ? `all${key[0].toUpperCase()}${key.slice(1)}` : key, { n: left, date: formatDate(expires) }) };
+}
+
+const el = (tag, className, text) => Object.assign(document.createElement(tag), { className, textContent: text ?? '' });
+
+// Number, title, "date · length · expiry" and "✓ Sótt" for one episode
+function episodeParts(e, { showNumbers, sharedExpiry, downloaded }) {
+  const meta = el('span', 'ep-meta');
+  // Some shows use the date as the title ("28. okt. 2026"); then it is not repeated
+  const titleIsDate = /\b(19|20)\d\d\b/.test(e.title || '');
+  // Each part stays on one line; lines may only break between them
+  const parts = [titleIsDate ? null : formatDate(e.firstrun), formatDuration(e.duration)]
+    .filter(Boolean).map(text => el('span', '', text));
+  const expiry = !sharedExpiry && expiryText(e.file_expires);
+  if (expiry) parts.push(el('span', expiry.soon ? 'soon' : '', expiry.text));
+  parts.forEach((part, i) => meta.append(...(i ? [' · ', part] : [part])));
+  const main = el('span', 'ep-main');
+  main.append(el('span', 'ep-title', e.title || e.id), meta);
+  return [
+    ...(showNumbers ? [el('span', 'ep-num', e.number ?? '')] : []),
+    main,
+    ...(downloaded.has(`${state.programId}/${e.id}`) ? [el('span', 'ep-done', `✓ ${t('downloaded')}`)] : []),
+  ];
+}
+
+// A picker: the chosen item on one row, with "Fleiri ▾" opening every choice
+// below it. Used for episodes and qualities; onPick(value) runs when another
+// item is picked.
+function makePicker(field, onPick) {
+  const toggle = field.querySelector('.pick-current');
+  const row = field.querySelector('.pick-row');
+  const list = field.querySelector('.pick-list');
+  const setOpen = open => {
+    list.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  toggle.addEventListener('click', () => {
+    const open = list.hidden;
+    setOpen(open);
+    if (open) list.querySelector('[aria-current]')?.focus();
+  });
+  // Escape closes the list and goes back to the button that opened it
+  field.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || list.hidden) return;
+    setOpen(false);
+    toggle.focus();
+  });
+  list.addEventListener('click', event => {
+    const item = event.target.closest('.pick-item');
+    if (!item || state.busy) return;
+    setOpen(false);
+    toggle.focus();
+    if (item.getAttribute('aria-current') !== 'true') onPick(item.value);
+  });
+  return {
+    setOpen,
+    // items: [{ value, parts: () => [nodes], current }]
+    render(items) {
+      row.replaceChildren(...(items.find(i => i.current) || items[0])?.parts() || []);
+      list.replaceChildren(...items.map(i => {
+        const item = Object.assign(el('button', 'pick-item'), { type: 'button', value: i.value });
+        if (i.current) item.setAttribute('aria-current', 'true');
+        item.append(...i.parts());
+        return item;
+      }));
+      toggle.disabled = items.length < 2;  // nothing to choose between
+      if (items.length < 2) setOpen(false);
+    },
+  };
+}
+
+const episodePicker = makePicker(els.episodeField, async id => {
   els.download.disabled = true;
   setStatus(els.status, 'loadingEpisode');
   try {
-    await loadEpisode(els.episode.value);
+    await loadEpisode(id);
+    renderEpisodeList();
     setStatus(els.status, null);
     updateDescriptionToggle();
   } catch (err) {
@@ -386,6 +553,33 @@ els.episode.addEventListener('change', async () => {
     els.download.disabled = false;
   }
 });
+
+// Picking another quality after a download starts over
+const qualityPicker = makePicker(els.qualityField, value => {
+  renderQualities(Number(value));
+  if (state.done) resetProgress();
+});
+
+// Every episode, newest first
+function renderEpisodeList() {
+  const current = state.episode;
+  let episodes = state.episodes;
+  if (!episodes.some(e => e.id === current.id)) episodes = [...episodes, current];
+  // Numbers that repeat say nothing, so they are left out (the list is then in air-date order)
+  const opts = { showNumbers: numbersAreUnique(episodes), downloaded: downloadedSet() };
+  // When every episode leaves on the same day, say it once under the list
+  const days = new Set(episodes.map(e => String(e.file_expires || '').slice(0, 10)));
+  const shared = days.size === 1 ? expiryText([...days][0], true) : null;
+  opts.sharedExpiry = days.size === 1;
+  els.episodesExpiry.hidden = !shared;
+  els.episodesExpiry.textContent = shared?.text || '';
+  els.episodesExpiry.classList.toggle('soon', !!shared?.soon);
+
+  episodePicker.render([...episodes].reverse().map(e => ({
+    value: e.id, current: e.id === current.id, parts: () => episodeParts(e, opts),
+  })));
+  els.episodeField.hidden = episodes.length < 2;
+}
 
 // Long descriptions show three lines with a More/Less toggle
 function setDescriptionExpanded(expanded) {
@@ -414,6 +608,7 @@ async function openWriter(filename, mime) {
     });
     const stream = await handle.createWritable();
     return {
+      handle,
       write: chunk => stream.write(chunk),
       finish: () => stream.close(),
       abort: () => stream.abort().catch(() => {}),
@@ -424,6 +619,42 @@ async function openWriter(filename, mime) {
     write: async chunk => { chunks.push(chunk); },
     finish: async () => saveBlob(new Blob(chunks, { type: mime }), filename),
     abort: async () => { chunks.length = 0; },
+  };
+}
+
+// The .srt (an option under "Fleiri stillingar"), named 'Name.is.srt': players
+// such as VLC, Plex and Jellyfin read the language from it (with plain
+// 'Name.srt', VLC took whatever followed the last dot in the title as the
+// language, e.g. '28. okt. 2026' -> '2026').
+// In Chrome/Edge it gets a second save dialog, opened in the video's folder: a
+// website can only write to the file the user picked, so without it the .srt
+// would land in Downloads. It has to open straight after the video's dialog,
+// while the click still counts. Other browsers save it as a normal download,
+// like the video.
+async function openSrtWriter(filename, nextTo) {
+  const asDownload = {
+    save: async text => saveBlob(new Blob([text], { type: 'text/plain' }), filename),
+    discard: async () => {},
+  };
+  if (!canSaveToDisk) return asDownload;
+  let handle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: filename, startIn: nextTo,
+      types: [{ description: 'SubRip', accept: { 'text/plain': ['.srt'] } }],
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') return null;  // dialog closed: no .srt, the video still comes
+    console.warn('Second save dialog refused, the .srt goes to Downloads:', err);
+    return asDownload;
+  }
+  return {
+    save: async text => {
+      const stream = await handle.createWritable();
+      await stream.write(text);
+      await stream.close();
+    },
+    discard: async () => { await handle.remove?.().catch(() => {}); },
   };
 }
 
@@ -454,7 +685,7 @@ async function downloadDirect(url, write, onProgress, signal) {
 
 els.download.addEventListener('click', async () => {
   if (state.busy) return;
-  const variant = state.variants[Number(els.quality.value) || 0];
+  const variant = state.variants[state.quality] || state.variants[0];
   const name = fileTitle(state.program, state.episode);
   const ext = variant.direct ? (new URL(variant.url).pathname.split('.').pop() || 'mp4') : 'mp4';
   const filename = `${name}.${ext}`;
@@ -468,69 +699,83 @@ els.download.addEventListener('click', async () => {
     showError(els.status, err);
     return;
   }
+  // Straight after the video's dialog (see openSrtWriter)
+  const srt = els.srt.checked && state.episode.subtitles_url ? await openSrtWriter(`${name}.is.srt`, writer.handle) : null;
 
   state.abort = new AbortController();
+  const { signal } = state.abort;
   setBusy(true);
-  const started = performance.now();
   let latest = { pct: 0, bytes: 0, eta: Infinity };
-  setStatus(els.status, 'progress', () => ({
-    pct: latest.pct, bytes: formatBytes(latest.bytes), eta: formatTime(latest.eta),
-  }));
+  let started;
 
   const onProgress = ({ done, total, bytes }) => {
     const fraction = total ? done / total : 0;
     els.bar.style.width = `${(fraction * 100).toFixed(1)}%`;
     const elapsed = (performance.now() - started) / 1000;
-    latest = { pct: Math.floor(fraction * 100), bytes, eta: fraction > 0.02 ? elapsed / fraction - elapsed : Infinity };
+    const pct = Math.floor(fraction * 100);
+    if (pct !== latest.pct) setPageTitle(`${pct}%`);
+    latest = { pct, bytes, eta: fraction > 0.02 ? elapsed / fraction - elapsed : Infinity };
     renderStatus(els.status);
   };
 
   try {
+    // Tags, subtitles and cover art go into the file itself
+    setStatus(els.status, 'preparing');
+    // A number shared with other episodes would give several files the same S01E05
+    const episode = numbersAreUnique(state.episodes) ? state.episode : { ...state.episode, number: null };
+    const extras = await getFileExtras(state.program, episode, { signal });
+    // The .srt is small, so it is saved before the video starts
+    if (srt) await (extras.subtitles.length ? srt.save(cuesToSrt(extras.subtitles)) : srt.discard());
+    startProgress();
     if (variant.direct) {
-      await downloadDirect(variant.url, writer.write, onProgress, state.abort.signal);
+      await downloadDirect(variant.url, writer.write, onProgress, signal);
     } else {
       await downloadHls(variant.url, {
-        audioUrl: variant.audio, muxjs: window.muxjs, write: writer.write, onProgress, signal: state.abort.signal,
+        audioUrl: variant.audio, muxjs: window.muxjs, write: writer.write, onProgress, signal, ...extras,
       });
     }
     await writer.finish();
   } catch (err) {
     await writer.abort();
-    if (state.abort.signal.aborted) setStatus(els.status, 'cancelled');
-    else showError(els.status, err);
+    await srt?.discard();  // no .srt without its video
+    if (signal.aborted) {
+      setStatus(els.status, 'cancelled');
+      setPageTitle();
+    } else {
+      showError(els.status, err);
+      setPageTitle('⚠');
+    }
     setBusy(false);
     return;
   }
 
-  // The video is saved, so from here on the download counts as finished
-  try {
-    if (els.subs.checked && state.episode.subtitles_url) {
-      setStatus(els.status, 'gettingSubs');
-      const vtt = await (await fetch(state.episode.subtitles_url)).text();
-      saveBlob(new Blob([vtt.includes('-->') ? vttToSrt(vtt) : vtt], { type: 'text/plain' }), `${name}.srt`);
-    }
-    setStatus(els.status, 'done', { file: filename }, 'ok');
-  } catch (err) {
-    showError(els.status, err);  // only the subtitles failed
-  } finally {
-    els.bar.style.width = '100%';
-    state.done = true;  // hide Sækja so the only way on is "Sækja eitthvað annað"
-    els.again.hidden = false;
-    els.coffee.hidden = false;  // the best moment to ask
-    setBusy(false);
+  setStatus(els.status, 'done', { file: filename }, 'ok');
+  setPageTitle('✓');
+  markDownloaded(state.programId, state.episode.id);
+  renderEpisodeList();
+  els.bar.style.width = '100%';
+  state.done = true;  // hide Sækja so the only way on is "Sækja eitthvað annað"
+  els.again.hidden = false;
+  els.coffee.hidden = false;  // the best moment to ask
+  setBusy(false);
+
+  function startProgress() {
+    started = performance.now();
+    setPageTitle('0%');
+    setStatus(els.status, 'progress', () => ({
+      pct: latest.pct, bytes: formatBytes(latest.bytes), eta: formatTime(latest.eta),
+    }));
   }
 });
 
 els.cancel.addEventListener('click', () => state.abort?.abort());
 
-// Picking another quality or subtitles after a download starts over
-for (const el of [els.quality, els.subs]) el.addEventListener('change', () => { if (state.done) resetProgress(); });
 
 // Back to an empty page, ready for the next link
 function goHome() {
   state.abort?.abort();  // the header link works mid-download too
   els.program.hidden = true;
-  document.title = 'ruv-dl';
+  setPageTitle();
   els.tip.hidden = true;
   els.howto.hidden = false;
   els.url.value = '';
@@ -559,9 +804,13 @@ function setBusy(busy) {
     els.again.hidden = true;
     els.coffee.hidden = true;
   }
-  els.episode.disabled = busy;
-  els.quality.disabled = busy || state.variants.length < 2;
-  renderSubtitles();
+  els.episodeField.disabled = busy;
+  els.qualityField.disabled = busy;
+  renderSrtOption();
+  if (busy) {
+    episodePicker.setOpen(false);
+    qualityPicker.setOpen(false);
+  }
   els.find.disabled = busy;
   els.url.disabled = busy;
   els.progress.hidden = false;
@@ -579,6 +828,7 @@ function resetProgress() {
   els.coffee.hidden = true;
   els.iosNote.hidden = !isIOS;
   setStatus(els.status, null);
+  setPageTitle();
 }
 
 window.addEventListener('beforeunload', event => {

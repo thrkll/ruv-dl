@@ -85,10 +85,11 @@ export async function getProgram(programId, episodeId, { fetchFn = fetch } = {})
   return data;
 }
 
-// All available episodes, oldest first: [{ id, number, title }]
+// All available episodes, oldest first:
+// [{ id, number, title, firstrun, duration (seconds), file_expires ('9999-12-31' = never) }]
 export async function getEpisodeList(programId, { fetchFn = fetch } = {}) {
   const query = `query getProgram($id: Int!) {
-    Program(id: $id) { title episodes { id number title } } }`;
+    Program(id: $id) { title episodes { id number title firstrun duration file_expires } } }`;
   const res = await fetchFn(GRAPHQL_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -99,9 +100,20 @@ export async function getEpisodeList(programId, { fetchFn = fetch } = {}) {
   const program = (await res.json())?.data?.Program;
   if (!program) throw new Error('Program not found.');
   const num = e => (/^\d+$/.test(String(e.number ?? '').trim()) ? Number(e.number) : null);
-  return (program.episodes || [])
-    .filter(e => e && e.id)
-    .sort((a, b) => (num(a) === null) - (num(b) === null) || (num(a) ?? 0) - (num(b) ?? 0));
+  const episodes = (program.episodes || []).filter(e => e && e.id);
+  if (!numbersAreUnique(episodes)) {
+    // The numbers mean nothing here, so the air date decides
+    return episodes.sort((a, b) => String(a.firstrun || '').localeCompare(String(b.firstrun || '')));
+  }
+  return episodes.sort((a, b) => (num(a) === null) - (num(b) === null) || (num(a) ?? 0) - (num(b) ?? 0));
+}
+
+// RÚV's episode numbers are not always unique: some programs get episodes in
+// batches whose numbering starts over (Blæja III has three episode 11s).
+// Episodes without a number are ignored here.
+export function numbersAreUnique(episodes) {
+  const numbers = episodes.map(e => String(e.number ?? '').trim()).filter(Boolean);
+  return new Set(numbers).size === numbers.length;
 }
 
 // ---------- HLS playlists ----------
@@ -263,13 +275,14 @@ async function fetchInOrder(urls, handle, { fetchFn, signal, concurrency }) {
 // Downloads an HLS variant and writes a regular MP4 through write(Uint8Array).
 // audioUrl is the variant's separate audio playlist, if it has one; the two
 // tracks are then merged into one file. onProgress({ done, total, bytes }) is
-// called after every segment.
+// called after every segment. subtitles, tags and cover (see getFileExtras)
+// go into the file too.
 //
 // Every source (MPEG-TS through mux.js, or fMP4 as it is) becomes fragments,
 // and the fragments' samples go into one MP4 (see mp4.js).
 export async function downloadHls(variantUrl, {
   audioUrl = null, muxjs, write, onProgress = () => {}, signal,
-  fetchFn = fetch, concurrency = 4,
+  fetchFn = fetch, concurrency = 4, subtitles = null, tags = null, cover = null,
 }) {
   const opts = { fetchFn, signal, concurrency };
   const urls = audioUrl ? [variantUrl, audioUrl] : [variantUrl];
@@ -306,7 +319,8 @@ export async function downloadHls(variantUrl, {
   }, opts);
 
   if (!tracks.every(tr => tr.src)) throw new UnsupportedError(UNCONVERTIBLE);
-  await writer.finish();
+  if (subtitles?.length) writer.addTextTrack(subtitles, { language: 'isl' });
+  await writer.finish({ tags, cover });
   return { bytes, duration: playlists[0].duration };
 }
 
@@ -328,27 +342,90 @@ function trackFeed(playlist, muxjs) {
 
 // ---------- Subtitles ----------
 
-export function vttToSrt(vtt) {
-  const blocks = String(vtt).replace(/\r/g, '').replace(/^﻿/, '').split(/\n{2,}/);
-  const out = [];
-  const time = t => {
-    const parts = t.trim().split(':');
-    if (parts.length === 2) parts.unshift('00');
-    const [h, m, s] = parts;
-    const [sec, ms = '000'] = s.split('.');
-    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${sec.padStart(2, '0')},${ms.padEnd(3, '0').slice(0, 3)}`;
-  };
-  for (const block of blocks) {
+const ENTITIES = { amp: '&', lt: '<', gt: '>', nbsp: ' ', lrm: '‎', rlm: '‏' };
+
+// WebVTT -> [{ start, end, text }], times in seconds. Tags and cue settings are dropped.
+export function parseVtt(vtt) {
+  const seconds = t => t.trim().split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
+  const cues = [];
+  for (const block of String(vtt).replace(/\r/g, '').replace(/^﻿/, '').split(/\n{2,}/)) {
     const lines = block.split('\n').filter(l => l.trim() !== '');
     const idx = lines.findIndex(l => l.includes('-->'));
     if (idx === -1) continue;  // header, NOTE, STYLE, REGION
     const [start, rest] = lines[idx].split('-->');
     const end = rest.trim().split(/\s+/)[0];  // drop cue settings
     const text = lines.slice(idx + 1)
-      .map(l => l.replace(/<(?!\/?[biu]>)[^>]+>/g, ''))  // keep <i>, <b>, <u>
+      .map(l => l.replace(/<[^>]*>/g, '').replace(/&(amp|lt|gt|nbsp|lrm|rlm);/g, (_, e) => ENTITIES[e]).trim())
+      .filter(Boolean)
       .join('\n');
-    if (!text) continue;
-    out.push(`${out.length + 1}\n${time(start)} --> ${time(end)}\n${text}\n`);
+    if (text) cues.push({ start: seconds(start), end: seconds(end), text });
   }
-  return out.join('\n');
+  return cues;
+}
+
+// [{ start, end, text }] (times in seconds) -> SubRip (.srt) text
+export function cuesToSrt(cues) {
+  const pad = (n, width = 2) => String(n).padStart(width, '0');
+  const time = seconds => {
+    const ms = Math.round(seconds * 1000);
+    return `${pad(Math.floor(ms / 3_600_000))}:${pad(Math.floor(ms / 60_000) % 60)}:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
+  };
+  return cues.map((c, i) => `${i + 1}\n${time(c.start)} --> ${time(c.end)}\n${c.text}\n`).join('\n');
+}
+
+// ---------- File tags ----------
+
+const ROMAN = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+const toRoman = n => ROMAN.reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, '');
+
+// RÚV has no season field: each season is its own program with a Roman numeral
+// at the end of the title. 'Blæja II' -> ['Blæja', 2]; 'Blæja' -> ['Blæja', 1]
+export function splitSeason(title) {
+  const text = String(title || '').trim();
+  const m = text.match(/^(.*?\S)[\s:–-]+([IVX]+)$/);
+  const season = m && Array.from({ length: 39 }, (_, i) => i + 1).find(n => toRoman(n) === m[2]);
+  return season ? [m[1].replace(/[\s:–-]+$/, ''), season] : [text, 1];
+}
+
+// Tags for the file (see mp4.js), the same ones the Python tool embeds
+export function fileTags(program, episode) {
+  const lines = d => (Array.isArray(d) ? d : [d]).filter(Boolean).join('\n').trim();
+  const common = {
+    description: lines(episode.description) || lines(program.description) || null,
+    date: String(episode.firstrun || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null,
+    genre: (program.categories || []).find(c => c?.title)?.title ?? null,
+    network: 'RÚV',
+  };
+  if (!program.multiple_episodes) return { ...common, kind: 'movie', title: program.title };
+  const [show, season] = splitSeason(program.title);
+  const number = /^\d+$/.test(String(episode.number ?? '').trim()) ? Number(episode.number) : null;
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    ...common, kind: 'tv', title: episode.title || show, show, season, episode: number,
+    episodeId: number === null ? null : `S${pad(season)}E${pad(number)}`,
+  };
+}
+
+// Everything that goes into the file besides the stream: tags, subtitles and
+// cover art. Subtitles and cover are optional; if they fail the file goes without.
+export async function getFileExtras(program, episode, { fetchFn = fetch, signal } = {}) {
+  const get = async (url, read) => {
+    if (!url) return null;
+    try {
+      const res = await fetchFn(url, { signal });
+      return res.ok ? await read(res) : null;
+    } catch {
+      return null;
+    }
+  };
+  const [vtt, cover] = await Promise.all([
+    get(episode.subtitles_url, res => res.text()),
+    // image_og is a JPEG; the other images are WebP, which MP4 cover art can't be
+    get(episode.image_og || program.image_og, async res => {
+      const type = res.headers.get('content-type') || '';
+      const kind = /png/i.test(type) ? 'png' : /jpe?g/i.test(type) ? 'jpeg' : null;
+      return kind && { kind, data: new Uint8Array(await res.arrayBuffer()) };
+    }),
+  ]);
+  return { tags: fileTags(program, episode), subtitles: vtt ? parseVtt(vtt) : [], cover };
 }

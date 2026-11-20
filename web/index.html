@@ -103,6 +103,8 @@
   }
   #url::placeholder { color: var(--muted); }
   .conn { margin: 10px 0 0; font: .78rem/1.4 var(--mono); color: var(--muted); }
+  /* Sized like the flag emoji it stands in for */
+  .conn .flag { height: .82em; width: auto; vertical-align: -.06em; border-radius: 1.5px; }
 
   /* 01 · 02 · 03 */
   .tip {
@@ -141,13 +143,97 @@
   .more { margin: 6px 0 0; }
 
   .fields { display: grid; gap: 14px; margin-top: 20px; }
-  .fields label { display: grid; gap: 6px; }
-  .fields label > span {
+  .fields > label { display: grid; gap: 6px; }
+  .fields > label > span {
     font: 700 .7rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
   }
-  .check { display: flex; align-items: center; gap: 10px; margin: 16px 0 20px; font-size: .95rem; }
-  .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--rec); }
-  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  /* Pickers (episode, quality): the chosen item on one row; "Fleiri" opens every choice below it */
+  .picker { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .picker legend {
+    padding: 0; margin-bottom: 6px;
+    font: 700 .7rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  }
+  /* Rows are buttons, but plain ones (not the red tape-deck keys) */
+  .pick-current, .pick-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    font: 400 1rem/1.35 var(--sans); white-space: normal; color: var(--ink);
+    box-shadow: none; transition: none;
+  }
+  .pick-current:active:not(:disabled), .pick-item:active:not(:disabled) { transform: none; box-shadow: none; }
+  .pick-current { background: var(--card); border: 2px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .pick-current:disabled { opacity: 1; cursor: default; }
+  .pick-current:disabled .pick-change { visibility: hidden; }
+  .pick-current[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .pick-row { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .pick-change { flex: none; font: 600 .8rem/1.2 var(--mono); letter-spacing: .04em; color: var(--muted); text-decoration: underline var(--rec); text-underline-offset: 3px; }
+  .pick-arrow { display: inline-block; text-decoration: none; transition: transform .15s; }
+  .pick-current[aria-expanded="true"] .pick-arrow { transform: rotate(180deg); }
+  @media (hover: hover) { .pick-current:hover:not(:disabled) .pick-change { color: var(--ink); text-decoration-style: wavy; } }
+
+  .pick-list {
+    background: var(--card); border: 2px solid var(--line); border-top: 0;
+    border-radius: 0 0 10px 10px; overflow: hidden;
+  }
+  .pick-item { background: none; border: 0; border-top: 1px solid var(--soft); border-radius: 0; padding: 9px 14px; }
+  .pick-item:first-child { border-top: 0; }
+  .pick-item[aria-current="true"] { background: var(--well); box-shadow: inset 4px 0 0 var(--rec); }
+  .pick-item[aria-current="true"] .ep-num { color: var(--rec); }
+  .pick-item:focus-visible { outline-offset: -3px; }
+  @media (hover: hover) { .pick-item:hover { background: var(--well); } }
+
+  .ep-num { flex: none; min-width: 2ch; text-align: right; font: 700 .8rem/1 var(--mono); color: var(--muted); }
+  .ep-main { display: grid; flex: 1; min-width: 0; }
+  /* In the open list, title and details share a line when there is room */
+  .pick-list .ep-main { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+  .ep-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pick-list .ep-title { white-space: normal; }
+  .ep-meta { font: .76rem/1.5 var(--mono); color: var(--muted); }
+  .ep-meta span { white-space: nowrap; }
+  .ep-meta .soon { color: var(--danger); font-weight: 700; }
+  .ep-done { flex: none; font: 700 .72rem/1 var(--mono); color: var(--ok); white-space: nowrap; }
+  .episodes-expiry { margin: 8px 0 0; font: .78rem/1.5 var(--mono); color: var(--muted); }
+  .episodes-expiry.soon { color: var(--danger); font-weight: 700; }
+
+  /* Fleiri stillingar: folded away, for the few who want them */
+  .more-settings summary {
+    cursor: pointer; width: fit-content; list-style: none; border-radius: 4px;
+    font: 600 .8rem/1.2 var(--mono); letter-spacing: .06em; color: var(--muted);
+  }
+  .more-settings summary::-webkit-details-marker { display: none; }
+  .more-settings summary::before { content: "▸"; color: var(--rec); display: inline-block; margin-right: 8px; transition: transform .15s; }
+  .more-settings[open] summary::before { transform: rotate(90deg); }
+  @media (hover: hover) { .more-settings summary:hover { color: var(--ink); } }
+  .check-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .check { display: flex; align-items: center; gap: 10px; font-size: .95rem; cursor: pointer; }
+  .check input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--rec); }
+  .check:has(input:disabled) { opacity: .45; cursor: default; }
+  /* A small "?" next to a setting; hovering (or focusing) it shows a bubble above it */
+  .hint { position: relative; display: inline-flex; }
+  button.hint-mark {
+    position: relative; display: inline-grid; place-items: center;
+    width: 17px; height: 17px; padding: 0; border-radius: 50%;
+    border: 1.5px solid currentColor; background: none; box-shadow: none; color: var(--muted);
+    font: 700 .68rem/1 var(--sans); cursor: help; opacity: .75;
+  }
+  button.hint-mark::after { content: ""; position: absolute; inset: -13px; }  /* a 44px tap target */
+  /* With a mouse it can be smaller still */
+  @media (hover: hover) and (pointer: fine) {
+    button.hint-mark { width: 13px; height: 13px; border-width: 1px; font-size: .56rem; }
+    button.hint-mark::after { inset: -6px; }
+  }
+  button.hint-mark:active:not(:disabled) { transform: none; box-shadow: none; }
+  .hint-text {
+    position: absolute; bottom: calc(100% + 9px); right: -12px; z-index: 5;
+    width: max-content; max-width: 240px; padding: 7px 10px; border-radius: 8px;
+    background: var(--ink); color: var(--paper); font: .78rem/1.4 var(--sans);
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s, visibility .12s;
+  }
+  /* The bubble's tail, pointing down at the "?" */
+  .hint-text::after { content: ""; position: absolute; top: 100%; right: 15px; border: 5px solid transparent; border-top-color: var(--ink); }
+  .hint:hover .hint-text, .hint-mark:focus + .hint-text { opacity: 1; visibility: visible; }
+  .hint:hover .hint-mark, .hint-mark:focus { opacity: 1; color: var(--ink); }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
 
   /* Tape counter */
   .progress { margin-top: 20px; }
@@ -228,9 +314,12 @@
     .card .body { padding: 18px 16px 22px; }
     .actions { padding-right: 4px; }
     .actions button { flex: 1 1 100%; min-height: 52px; }
-    .check { min-height: 44px; margin: 12px 0 16px; }
-    .check input { width: 24px; height: 24px; }
     button.link.more { min-height: 44px; }
+    .pick-item, .pick-current { min-height: 52px; padding: 8px 12px; }
+    .more-settings summary { display: flex; align-items: center; min-height: 44px; }
+    .check-row { margin-top: 4px; }
+    .check { min-height: 44px; }
+    .check input { width: 24px; height: 24px; }
 
     .tip { margin-right: 4px; }
     footer { font-size: .85rem; }
@@ -282,15 +371,35 @@
       <button type="button" class="link more" id="more" aria-expanded="false" hidden data-i18n="more">Meira</button>
 
       <div class="fields">
-        <label id="episode-field"><span data-i18n="episode">Þáttur</span>
-          <select id="episode"></select>
-        </label>
-        <label><span data-i18n="quality">Gæði</span>
-          <select id="quality"></select>
-        </label>
+        <fieldset class="picker" id="episode-field">
+          <legend data-i18n="episode">Þáttur</legend>
+          <button type="button" class="pick-current" aria-expanded="false" aria-controls="episodes">
+            <span class="pick-row"></span>
+            <span class="pick-change"><span data-i18n="pickMore">Fleiri</span> <span class="pick-arrow" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="pick-list" id="episodes" hidden></div>
+          <p class="episodes-expiry" id="episodes-expiry" hidden></p>
+        </fieldset>
+        <fieldset class="picker" id="quality-field">
+          <legend data-i18n="quality">Gæði</legend>
+          <button type="button" class="pick-current" aria-expanded="false" aria-controls="qualities">
+            <span class="pick-row"></span>
+            <span class="pick-change"><span data-i18n="pickMore">Fleiri</span> <span class="pick-arrow" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="pick-list" id="qualities" hidden></div>
+        </fieldset>
+        <details class="more-settings">
+          <summary data-i18n="moreSettings">Fleiri stillingar</summary>
+          <div class="check-row">
+            <label class="check"><input type="checkbox" id="srt"> <span data-i18n="srtSetting">Vista undirtexta sem .srt skrá</span></label>
+            <span class="hint">
+              <button type="button" class="hint-mark" aria-describedby="srt-note" data-i18n-label="srtInfo" aria-label="Nánar">?</button>
+              <span class="hint-text" id="srt-note" role="tooltip" data-i18n="srtNote"></span>
+            </span>
+          </div>
+        </details>
       </div>
 
-      <label class="check"><input type="checkbox" id="subs"> <span id="subs-label"></span></label>
 
       <div class="actions">
         <button id="download" type="button" data-i18n="download">Sækja</button>
@@ -328,7 +437,7 @@
       <div data-lang-block="is" lang="is">
         <h3>Hvað er ruv-dl?</h3>
         <p>ruv-dl er opinn hugbúnaður sem hefur enga tengingu við RÚV.</p>
-        <p>Engar vafrakökur eru notaðar og notkun þín er ekki rakin. Allt gerist í vafranum þínum og efnið kemur milliliðalaust frá RÚV. Ein önnur tenging er við Cloudflare (1.1.1.1) til að sýna þér frá hvaða landi þú ert að tengjast.</p>
+        <p>Engar vafrakökur eru notaðar og notkun þín er ekki rakin. Vafrinn þinn man hvaða þætti þú hefur sótt svo hægt sé að merkja þá í listanum, en sú vitneskja fer aldrei út úr vafranum. Allt gerist í vafranum þínum og efnið kemur milliliðalaust frá RÚV. Ein önnur tenging er við Cloudflare (1.1.1.1) til að sýna þér frá hvaða landi þú ert að tengjast.</p>
 
         <div data-shortcut>
           <h3>Flýtileið</h3>
@@ -350,6 +459,10 @@
         <h3>Hvernig er efnið sett saman?</h3>
         <p>RÚV sendir efni út með HLS (HTTP Live Streaming) og <code>.m3u8</code> playlist sem vísar á hundruð stuttra búta, um sex sekúndur hver, í mismunandi gæðum. ruv-dl les listann, sækir bútana í réttri röð, nokkra í einu, og breytir þeim úr MPEG-TS í MP4 með js-safninu mux.js og sérsmíðuðum muxing kóða. Mynd og hljóð eru afrituð óbreytt og ekki endurkóðuð með neinum hætti, svo engin gæði tapast.</p>
 
+        <h3>Hvað fylgir með í skránni?</h3>
+        <p>Íslenski textinn fer inn í skrána sjálfa sem sérstök textarás, svo þú þarft ekki að halda utan um aukaskrá. Í flestum spilurum kveikirðu á honum í valmyndinni fyrir texta, t.d. <i>Subtitle → Sub Track</i> í VLC eða talblöðrutáknið á iPhone, iPad og Mac. Plex og Jellyfin finna hann sjálf. Ef þú vilt textann líka sem sérstaka .srt-skrá geturðu hakað við það undir <i>Fleiri stillingar</i>.</p>
+        <p>Titill, þáttaröð, þáttanúmer, lýsing, sýningardagur, flokkur og mynd af efninu eru líka geymd í skránni. Þær upplýsingar sjást t.d. í eiginleikum skrárinnar í Windows, í Finder á Mac og í spilurum eins og VLC, Plex og Apple TV.</p>
+
         <h3>Hvernig er skráin vistuð?</h3>
         <p>Í Chrome og Edge (Chromium-vafrar) er skráin skrifuð beint á diskinn á tölvunni þinni í gegnum File System Access API, svo efnið tekur lítið minni í vafranum. Aðrir vafrar (Firefox, Safari o.fl.) safna skránni saman í minni (sem <code>Blob</code>) og henni er svo halað niður eins og hverri annarri skrá.</p>
 
@@ -360,7 +473,7 @@
       <div data-lang-block="en" lang="en" hidden>
         <h3>What is ruv-dl?</h3>
         <p>ruv-dl is an independent open-source project, not affiliated with RÚV. For personal use only.</p>
-        <p>No cookies are used and nothing is tracked. Everything happens in your browser, and the content comes straight from RÚV with nothing in between. The only other connection is to Cloudflare (1.1.1.1), to show you which country you are connecting from.</p>
+        <p>No cookies are used and nothing is tracked. Your browser remembers which episodes you have downloaded so the list can mark them, but that never leaves your browser. Everything happens in your browser, and the content comes straight from RÚV with nothing in between. The only other connection is to Cloudflare (1.1.1.1), to show you which country you are connecting from.</p>
 
         <div data-shortcut>
           <h3>Shortcut</h3>
@@ -381,6 +494,10 @@
 
         <h3>How is the file put together?</h3>
         <p>RÚV streams its content with HLS (HTTP Live Streaming) and a <code>.m3u8</code> playlist that points to hundreds of short segments, about six seconds each, in different qualities. The page reads the playlist, fetches the segments in order, a few at a time, and converts them from MPEG-TS to MP4 with the JS library mux.js and custom-built muxing code. Video and audio are copied as they are and not re-encoded in any way, so no quality is lost.</p>
+
+        <h3>What's in the file?</h3>
+        <p>The Icelandic subtitles go into the file itself as a separate subtitle track, so there is no extra file to keep track of. In most players you turn them on in the subtitle menu, e.g. <i>Subtitle → Sub Track</i> in VLC or the speech bubble icon on iPhone, iPad and Mac. Plex and Jellyfin pick them up on their own. If you also want them as a separate .srt file, tick that under <i>More settings</i>.</p>
+        <p>The title, series, episode number, description, air date, genre and a picture of the program are stored in the file too. They show up in places like the file's properties in Windows, Finder on a Mac, and players such as VLC, Plex and Apple TV.</p>
 
         <h3>How is the file saved?</h3>
         <p>In Chrome and Edge the file is then written straight to the disk on your computer through the File System Access API, so the content takes up little memory in the browser. Other browsers (Firefox, Safari etc.) collect the file in memory (as a <code>Blob</code>), which is then downloaded like any other file.</p>

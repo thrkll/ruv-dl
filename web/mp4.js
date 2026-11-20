@@ -9,7 +9,8 @@
 //   ftyp                    written first
 //   mdat                    one per incoming fragment, copied as it arrives
 //   ...
-//   moov                    written by finish()
+//   mdat                    subtitle samples, if any (written by finish())
+//   moov                    written by finish(), with the file's tags in udta
 //
 // Nothing is ever seeked back to or patched, so a plain write(chunk) is enough.
 
@@ -193,6 +194,92 @@ function full(type, version, flags, bodySize, fill) {
 
 const matrix = w => { w.u32(0x10000); w.zeros(12); w.u32(0x10000); w.zeros(12); w.u32(0x40000000); };
 
+// ISO 639-2 code packed into 15 bits, as mdhd stores it: 'und' -> 0x55c4
+export const packLanguage = code => [...code].reduce((n, c) => (n << 5) | (c.charCodeAt(0) - 0x60), 0);
+
+const utf8 = s => new TextEncoder().encode(s);
+
+// ---------- Subtitles (3GPP timed text, what ffmpeg calls mov_text) ----------
+
+// The tx3g sample entry: white 18 px sans-serif, centred at the bottom
+function tx3gEntry() {
+  const font = 'Sans-Serif';
+  const ftab = 13 + font.length;
+  const size = 8 + 8 + 4 + 2 + 4 + 8 + 12 + ftab;
+  const w = new Out(size);
+  w.u32(size); w.str('tx3g'); w.zeros(6); w.u16(1);  // data reference index
+  w.u32(0);                                         // display flags
+  w.u8(1); w.u8(0xff);                              // horizontal: centre, vertical: bottom
+  w.u32(0);                                         // background colour (transparent)
+  w.zeros(8);                                       // default text box
+  w.u16(0); w.u16(0); w.u16(1); w.u8(0); w.u8(18); w.u32(0xffffffff);  // style: font 1, 18 px, white
+  w.u32(ftab); w.str('ftab'); w.u16(1); w.u16(1); w.u8(font.length); w.str(font);
+  return w.done();
+}
+
+// One sample per cue, and an empty one for each pause between cues, so the
+// samples cover the timeline without holes. Times in milliseconds.
+// cues: [{ start, end, text }] with start and end in seconds.
+function textSamples(cues) {
+  const samples = [];
+  let time = 0;
+  for (const cue of [...cues].sort((a, b) => a.start - b.start)) {
+    const start = Math.max(time, Math.round(cue.start * 1000));
+    const end = Math.round(cue.end * 1000);
+    if (end <= start || !cue.text) continue;
+    if (start > time) samples.push({ dur: start - time, bytes: new Uint8Array(2) });
+    const text = utf8(cue.text).subarray(0, 0xffff);
+    const bytes = new Uint8Array(2 + text.length);
+    bytes[0] = text.length >> 8; bytes[1] = text.length & 255;
+    bytes.set(text, 2);
+    samples.push({ dur: end - start, bytes });
+    time = end;
+  }
+  return samples;
+}
+
+// ---------- Tags (iTunes-style, read by Apple TV, VLC, Plex, Explorer, ...) ----------
+
+// [atom, key in tags, how the value is stored]
+const TAG_ATOMS = [
+  ['©nam', 'title', 'text'], ['tvsh', 'show', 'text'], ['tvsn', 'season', 'int'],
+  ['tves', 'episode', 'int'], ['tven', 'episodeId', 'text'], ['desc', 'description', 'short'],
+  ['ldes', 'description', 'text'], ['©day', 'date', 'text'], ['©gen', 'genre', 'text'],
+  ['tvnn', 'network', 'text'],
+];
+const MEDIA_KIND = { movie: 9, tv: 10 };
+const COVER_TYPE = { jpeg: 13, png: 14 };
+
+// moov/udta/meta/ilst, or null when there is nothing to write.
+// tags: { title, show, season, episode, episodeId, description, date, genre, network, kind: 'tv' | 'movie' }
+// cover: { kind: 'jpeg' | 'png', data: Uint8Array }
+function tagsBox(tags = {}, cover = null) {
+  const items = [];
+  // Every item holds a 'data' box: type (1 text, 21 integer, 13/14 image), locale 0, value
+  const item = (atom, type, value) => items.push(box(atom, [
+    full('data', 0, type, 4 + value.length, w => { w.zeros(4); w.bytes(value); }),
+  ]));
+  for (const [atom, key, how] of TAG_ATOMS) {
+    const value = tags?.[key];
+    if (how === 'int') {
+      if (!Number.isInteger(value)) continue;
+      const w = new Out(4); w.u32(value);
+      item(atom, 21, w.done());
+    } else if (value) {
+      // desc is meant to be short; ldes has the whole text
+      const text = how === 'short' && value.length > 255 ? `${value.slice(0, 254).trimEnd()}…` : String(value);
+      item(atom, 1, utf8(text));
+    }
+  }
+  if (MEDIA_KIND[tags?.kind]) item('stik', 21, Uint8Array.of(MEDIA_KIND[tags.kind]));
+  if (cover?.data?.length && COVER_TYPE[cover.kind]) item('covr', COVER_TYPE[cover.kind], cover.data);
+  if (!items.length) return null;
+  const hdlr = full('hdlr', 0, 0, 21, w => { w.zeros(4); w.str('mdir'); w.str('appl'); w.zeros(9); });
+  const ilst = box('ilst', items);
+  const meta = full('meta', 0, 0, hdlr.length + ilst.length, w => { w.bytes(hdlr); w.bytes(ilst); });
+  return box('udta', [meta]);
+}
+
 // Run-length pairs [count, value] over a column (as two typed arrays)
 function runs(col) {
   const counts = new Column(Uint32Array);
@@ -300,20 +387,42 @@ export function createMp4Writer({ write, startOffset = 0 }) {
     }
     const byId = {};
     for (const info of found) {
-      const t = {
-        ...info,
-        dur: new Column(Uint32Array), size: new Column(Uint32Array), cto: new Column(Int32Array),
-        sync: new Column(Uint8Array), chunkOffset: new Column(Float64Array), chunkCount: new Column(Uint32Array),
-        chunkDesc: new Column(Uint32Array),
-        // Sample descriptions; desc is the 1-based stsd index the next chunks use
-        descs: [{ entries: info.entries, entryCount: info.entryCount, index: 1 }], desc: 1,
-        firstDts: null, firstCto: 0, nextDts: null,
-        gaps: 0, gapTicks: 0, trims: 0, trimTicks: 0,
-      };
+      const t = newTrack(info);
       tracks.push(t);
       byId[t.id] = t;
     }
     return { byId };
+  }
+
+  function newTrack(info, language = 'und') {
+    return {
+      ...info,
+      language,
+      dur: new Column(Uint32Array), size: new Column(Uint32Array), cto: new Column(Int32Array),
+      sync: new Column(Uint8Array), chunkOffset: new Column(Float64Array), chunkCount: new Column(Uint32Array),
+      chunkDesc: new Column(Uint32Array),
+      // Sample descriptions; desc is the 1-based stsd index the next chunks use
+      descs: [{ entries: info.entries, entryCount: info.entryCount, index: 1 }], desc: 1,
+      firstDts: null, firstCto: 0, nextDts: null,
+      gaps: 0, gapTicks: 0, trims: 0, trimTicks: 0,
+    };
+  }
+
+  // Adds a subtitle track. cues: [{ start, end, text }], times in seconds from
+  // the start of the program (where the first video or audio sample is shown).
+  // Its samples are written by finish(), just before the moov.
+  function addTextTrack(cues, { language = 'isl' } = {}) {
+    if (finished) throw new Error('writer is finished');
+    const samples = textSamples(cues || []);
+    if (!samples.length) return;
+    const entries = tx3gEntry();
+    const t = newTrack({ id: 0, handler: 'sbtl', timescale: 1000, entries, entryCount: 1, wh: new Uint8Array(8) }, language);
+    for (const s of samples) {
+      t.dur.push(s.dur); t.size.push(s.bytes.length); t.cto.push(0); t.sync.push(1);
+    }
+    t.firstDts = 0;
+    t.text = samples.map(s => s.bytes);
+    tracks.push(t);
   }
 
   // mux.js sends an init segment with every segment. When the codec setup
@@ -425,16 +534,32 @@ export function createMp4Writer({ write, startOffset = 0 }) {
     if (t.nextDts === null || end > t.nextDts) t.nextDts = end;
   }
 
-  // Writes the moov. Returns { bytes, duration (seconds), tracks: stats }.
-  async function finish() {
+  // Writes the subtitle samples and the moov, with tags and cover art when
+  // given (see tagsBox). Returns { bytes, duration (seconds), tracks: stats }.
+  async function finish({ tags = null, cover = null } = {}) {
     if (finished) throw new Error('writer is finished');
     finished = true;
     const used = tracks.filter(t => t.size.length);
-    if (!used.length) fail();
+    const media = used.filter(t => !t.text);
+    if (!media.length) fail();
     await start();
 
-    const startTime = t => (t.firstDts + t.firstCto) / t.timescale;
-    const t0 = Math.min(...used.map(startTime));
+    // Subtitles are small: all their samples go in one mdat, as one chunk
+    const picture = media.find(t => t.handler === 'vide')?.wh;
+    for (const t of used.filter(t => t.text)) {
+      const size = t.text.reduce((n, b) => n + b.length, 0);
+      const header = new Out(8);
+      header.u32(size + 8); header.str('mdat');
+      await put(header.done());
+      t.chunkOffset.push(pos); t.chunkCount.push(t.size.length); t.chunkDesc.push(1);
+      await put(cat(t.text));
+      if (picture) t.wh = picture;  // the text box covers the picture
+    }
+
+    // Video and audio decide where the movie starts; subtitles start there too
+    const begins = t => (t.firstDts + t.firstCto) / t.timescale;
+    const t0 = Math.min(...media.map(begins));
+    const startTime = t => (t.text ? t0 : begins(t));
     let movieDur = 0;
     const traks = used.map((t, k) => {
       let mediaDur = 0;
@@ -447,10 +572,11 @@ export function createMp4Writer({ write, startOffset = 0 }) {
       t.delay = delay / MOVIE_TIMESCALE;
       t.duration = mediaDur / t.timescale;
 
-      const vide = t.handler === 'vide';
+      const vide = t.handler === 'vide', soun = t.handler === 'soun';
       const tkhd = full('tkhd', 0, 3, 80, w => {
         w.zeros(8); w.u32(k + 1); w.zeros(4); w.u32(editDur); w.zeros(8);
-        w.u16(0); w.u16(vide ? 0 : 1); w.u16(vide ? 0 : 0x0100); w.u16(0);
+        // layer, alternate group (one per kind of track), volume
+        w.u16(0); w.u16(vide ? 0 : soun ? 1 : 2); w.u16(soun ? 0x0100 : 0); w.u16(0);
         matrix(w); w.bytes(t.wh);
       });
       const entries = delay > 0 ? 2 : 1;
@@ -462,11 +588,13 @@ export function createMp4Writer({ write, startOffset = 0 }) {
       const v1 = mediaDur >= 2 ** 32;
       const mdhd = full('mdhd', v1 ? 1 : 0, 0, v1 ? 32 : 20, w => {
         if (v1) { w.zeros(16); w.u32(t.timescale); w.u64(mediaDur); } else { w.zeros(8); w.u32(t.timescale); w.u32(mediaDur); }
-        w.u16(0x55c4); w.u16(0);
+        w.u16(packLanguage(t.language)); w.u16(0);
       });
-      const name = vide ? 'VideoHandler\0' : 'SoundHandler\0';
+      const name = vide ? 'VideoHandler\0' : soun ? 'SoundHandler\0' : 'SubtitleHandler\0';
       const hdlr = full('hdlr', 0, 0, 20 + name.length, w => { w.zeros(4); w.str(t.handler); w.zeros(12); w.str(name); });
-      const mhd = vide ? full('vmhd', 0, 1, 8, w => w.zeros(8)) : full('smhd', 0, 0, 4, w => w.zeros(4));
+      const mhd = vide ? full('vmhd', 0, 1, 8, w => w.zeros(8))
+        : soun ? full('smhd', 0, 0, 4, w => w.zeros(4))
+        : full('nmhd', 0, 0, 0, () => {});
       const dinf = box('dinf', [full('dref', 0, 0, 4 + 12, w => { w.u32(1); w.bytes(full('url ', 0, 1, 0, () => {})); })]);
       const minf = box('minf', [mhd, dinf, sampleTables(t)]);
       return box('trak', [tkhd, box('edts', [elst]), box('mdia', [mdhd, hdlr, minf])]);
@@ -475,7 +603,8 @@ export function createMp4Writer({ write, startOffset = 0 }) {
       w.zeros(8); w.u32(MOVIE_TIMESCALE); w.u32(movieDur); w.u32(0x10000); w.u16(0x0100); w.zeros(10);
       matrix(w); w.zeros(24); w.u32(used.length + 1);
     });
-    await put(box('moov', [mvhd, ...traks]));
+    const udta = tagsBox(tags, cover);
+    await put(box('moov', [mvhd, ...traks, ...(udta ? [udta] : [])]));
     return {
       bytes: pos - startOffset,
       duration: movieDur / MOVIE_TIMESCALE,
@@ -487,7 +616,14 @@ export function createMp4Writer({ write, startOffset = 0 }) {
     };
   }
 
-  return { addTrack, addFragment, finish };
+  return { addTrack, addTextTrack, addFragment, finish };
+}
+
+function cat(parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
 }
 
 function sameBytes(a, b) {
